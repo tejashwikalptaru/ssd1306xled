@@ -78,16 +78,16 @@ class SSD1306Device
 		void ssd1306_send_data_stop(void);
 		void ssd1306_send_byte(uint8_t byte);
 
+		void ssd1306_send_command_start(void);
+		void ssd1306_send_command_stop(void);
+		void ssd1306_send_command(uint8_t command);
+
 		void ssd1306_setpos(uint8_t x, uint8_t y);
 		void ssd1306_fillscreen(uint8_t fill);
 		void ssd1306_char_font6x8(char ch);
 		void ssd1306_string_font6x8(char *s);
-		void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[]);
-
-		void ssd1306_send_command_start(void);
-		void ssd1306_send_command_stop(void);
-		void ssd1306_send_command(uint8_t command);
 		void ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[]);
+		void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[]);
 
 	private:
 		int I2Ccount;

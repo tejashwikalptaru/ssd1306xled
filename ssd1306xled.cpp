@@ -154,7 +154,6 @@ bool SSD1306Device::I2CWrite(uint8_t data)  {
   return true;
 }
 
-
 void SSD1306Device::ssd1306_init(void)
 {
 	begin();
