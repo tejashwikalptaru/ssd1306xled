@@ -1,0 +1,29 @@
+{
+    "name": "ssd1306xled",
+    "keywords": "ssd1306xled, SSD1306, SSD1315, SSH1106, OLED",
+    "description": "SSD1306, SSD1315 or SSH1106 OLED screen driver",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/tejashwikalptaru/ssd1306xled.git"
+    },
+    "authors": [
+      {
+        "name": "Neven Boyanov",
+        "url": "https://bitbucket.org/tinusaur/ssd1306xled/src",
+        "maintainer": false
+      },
+      {
+        "name": "David Johnson-Davies",
+        "url": "https://github.com/technoblogy/tiny-i2c",
+        "maintainer": false
+      },
+      {
+        "name": "Tejashwi Kalp Taru",
+        "url": "https://github.com/tejashwikalptaru/ssd1306xled",
+        "maintainer": true
+      }
+    ],
+    "version": "0.0.1",
+    "frameworks": "arduino",
+    "platforms": "atmelavr"
+  }
