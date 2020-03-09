@@ -18,6 +18,11 @@ This library is tested on Attiny85 and some chinese oled screens based on these 
 
 ![schematic](images/schematic.png?raw=true "Schematic")
 
+### Installation
+- PlatformIO: `pio lib install "ssd1306xled"`, [visit library page](https://platformio.org/lib/show/7105/ssd1306xled/installation)
+- Arduino IDE: coming soon
+- Manual: Download the project master [ZIP](https://github.com/tejashwikalptaru/ssd1306xled/archive/master.zip)
+
 ### How to use the code
 - Hello world code
 ```c
@@ -52,13 +57,14 @@ void run() {
     - `void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[])`: draws the bitmap to the screen
 
 ### Contribution
-You can improve this library by your contribution. If you want to improve the code or have fix of some issues with this library, please feel free to fork this library and submit a new pull request with your changes and description
+You can improve this library by your contribution. If you want to improve the code or have fix for some issues with library, please feel free to fork this library and submit a new pull request with your changes and description
 
 ### Credits
 This code is mainly written by Neven Boyanov, Tinusar team. I replaced their I2C implementation with the implementation by  David Johnson-Davies (TinyI2C).
 
-### Versioning
-- v0.0.1 - initial release
+### Versions
+- v0.0.1 (March 08, 2020)
+    - initial release
 
 
 
