@@ -7,7 +7,7 @@ There was some compatibility issues with the I2C implementation of original `ssd
 This library is tested on Attiny85 and some chinese oled screens based on these drivers.
 
 ### Connection
-| Attiny85 | OLED |
+| OLED     | Attiny85 |
 |----------|------|
 | vcc      | vcc  |
 | gnd      | gnd  |
