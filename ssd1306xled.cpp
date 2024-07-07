@@ -165,6 +165,20 @@ void SSD1306Device::ssd1306_init(void)
 	ssd1306_fillscreen(0);
 }
 
+// A shorter init saves 52 flash bytes (if zeroed screen is not required)
+// The code of 'ssd1306_init()' is replicated to allow the linker to drop the unused method during linkage.
+void SSD1306Device::ssd1306_tiny_init(void)
+{
+	begin();
+	ssd1306_send_command_start();
+	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence); i++) {
+		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence[i]));
+	}
+	ssd1306_send_command_stop();
+	// save 52 bytes :)
+	//ssd1306_fillscreen(0);
+}
+
 void SSD1306Device::ssd1306_send_command_start(void) {
 	I2CStop();
 	I2CStart(SSD1306_SA, 0);
