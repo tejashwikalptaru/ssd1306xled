@@ -43,6 +43,7 @@ void run() {
 
 - Library functions
     - `void ssd1306_init(void)`: initializes the screen
+    - `void ssd1306_tiny_init(void)`: initializes the screen without filling the screen with '0'
     - `void ssd1306_send_data_start(void)`: put the communication with a screen in data mode
     - `void ssd1306_send_data_stop(void)`: stops the communication 
     - `void ssd1306_send_byte(uint8_t byte)`: send data byte to screen
@@ -65,6 +66,8 @@ This code is mainly written by Neven Boyanov, Tinusar team. I replaced their I2C
 ### Versions
 - v0.0.1 (March 08, 2020)
     - initial release
+- v0.0.2 (July 07, 2024)
+    - added 'ssd1306_tiny_init()' to save flash memory if an initial screen fill is not required (~52 bytes shorter)
 
 
 

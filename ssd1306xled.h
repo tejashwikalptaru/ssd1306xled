@@ -19,6 +19,9 @@
 #ifndef SSD1306XLED_H
 #define SSD1306XLED_H
 
+#define _SSD1306XLED_TINY_INIT_SUPPORTED_
+
+
 // ----------------------------------------------------------------------------
 
 // -----(+)--------------->	// Vcc,	Pin 1 on SSD1306 Board
@@ -73,6 +76,7 @@ class SSD1306Device
     public:
 		SSD1306Device(void);
 		void ssd1306_init(void);
+		void ssd1306_tiny_init(void);
 
 		void ssd1306_send_data_start(void);
 		void ssd1306_send_data_stop(void);
