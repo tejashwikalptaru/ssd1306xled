@@ -186,18 +186,6 @@ void SSD1306Device::ssd1306_init(void)
 	ssd1306_fillscreen(0);
 }
 
-// An alternate version of 'ssd1306_init()' which enables the vertical addressing mode.
-void SSD1306Device::ssd1306_init_vertical(void)
-{
-	begin();
-	ssd1306_send_command_start();
-	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence_vertical_addressing_mode); i++) {
-		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence_vertical_addressing_mode[i]));
-	}
-	ssd1306_send_command_stop();
-	ssd1306_fillscreen(0);
-}
-
 // A shorter init saves 52 flash bytes (if zeroed screen is not required)
 // The code of 'ssd1306_init()' is replicated to allow the linker to drop the unused method during linkage.
 void SSD1306Device::ssd1306_tiny_init(void)

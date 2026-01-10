@@ -76,7 +76,6 @@ class SSD1306Device
     public:
 		SSD1306Device(void);
 		void ssd1306_init(void);
-		void ssd1306_init_vertical(void);
 		void ssd1306_tiny_init(void);
 		void ssd1306_tiny_init_vertical(void);
 
