@@ -20,7 +20,7 @@
 #define SSD1306XLED_H
 
 #define _SSD1306XLED_TINY_INIT_SUPPORTED_
-
+#define _SSD1306XLED_INIT_VERTICAL_SUPPORTED_
 
 // ----------------------------------------------------------------------------
 
@@ -76,7 +76,9 @@ class SSD1306Device
     public:
 		SSD1306Device(void);
 		void ssd1306_init(void);
+		void ssd1306_init_vertical(void);
 		void ssd1306_tiny_init(void);
+		void ssd1306_tiny_init_vertical(void);
 
 		void ssd1306_send_data_start(void);
 		void ssd1306_send_data_stop(void);
