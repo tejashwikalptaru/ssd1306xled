@@ -9,8 +9,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  # models permission is usually implied by GH_TOKEN for beta users,
-  # but checking your org settings is good.
 
 jobs:
   generate-changelog:
@@ -24,30 +22,29 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Install GitHub Models Extension
-        run: gh extension install https://github.com/github/gh-models
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Get PR information
         id: pr_info
         run: |
           PR_TITLE="${{ github.event.pull_request.title }}"
           
-          # Get commits (limit to last 15 to prevent token overflow)
+          # 1. Get Commit Messages (Limit 15)
           COMMITS=$(git log origin/${{ github.base_ref }}..HEAD --pretty=format:"- %s" --no-merges | head -15)
           
-          # Get file list
+          # 2. Get Changed Files (Limit 15)
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | head -15)
           
-          # Get stats
-          DIFF_STAT=$(git diff origin/${{ github.base_ref }}...HEAD --stat | tail -1)
+          # 3. Get Actual Diff (Crucial for AI accuracy)
+          # We truncate to 3000 chars to avoid token limits/costs
+          # We exclude lockfiles which are huge and useless to AI
+          RAW_DIFF=$(git diff origin/${{ github.base_ref }}...HEAD -- . ':(exclude)package-lock.json' ':(exclude)*.lock')
+          DIFF=$(echo "$RAW_DIFF" | head -c 3000)
 
           # Handle empty commits case
           if [ -z "$COMMITS" ]; then
             COMMITS="No commit messages found."
           fi
 
+          # Output variables safely to GITHUB_OUTPUT
           echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
           
           echo "changed_files<<EOF" >> $GITHUB_OUTPUT
@@ -58,79 +55,85 @@ jobs:
           echo "$COMMITS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          echo "diff_stat=$DIFF_STAT" >> $GITHUB_OUTPUT
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Generate changelog with AI
         id: ai_changelog
         continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # 1. Create a Strict Prompt
-          cat > /tmp/prompt.txt << 'PROMPT_EOF'
-          You are an automated changelog assistant. Your ONLY job is to summarize the provided Commit Messages and PR Title into a list.
+          # 1. Prepare Prompt Content
+          # We construct the text first so we can inject it into JSON safely later
+          PROMPT_CONTENT="You are a senior technical writer.
           
-          ⛔ **STRICT RULES - READ CAREFULLY:**
-          1. **DO NOT** invent features.
-          2. **DO NOT** make up version numbers (like v1.2.0).
-          3. **DO NOT** write a generic introduction about "enhancing development experience."
-          4. **ONLY** use the "Source Data" below.
-          5. If the commit messages are vague, just list them as they are.
-
-          ---
-          **SOURCE DATA:**
-
-          **Project Name:** ssd1306xled
-          **PR Title:** ${{ steps.pr_info.outputs.pr_title }}
-
-          **Changed Files:**
-          ${{ steps.pr_info.outputs.changed_files }}
-
-          **Commit Messages (The Truth):**
-          ${{ steps.pr_info.outputs.commits }}
-
-          **Diff Stats:** ${{ steps.pr_info.outputs.diff_stat }}
-          ---
-
-          **OUTPUT FORMAT (Markdown):**
-
-          ## Summary
-          [1 sentence summarizing the PR Title]
-
-          ## 🛠 Changes
-          - [Bullet point derived ONLY from Commit Messages]
-          - [Bullet point derived ONLY from Commit Messages]
-
-          ## 📄 Files
-          - [List top 3 important files changed]
-
-          PROMPT_EOF
-
-          # 2. DEBUG: Print the prompt to logs so we can see what the AI sees
-          echo "---------------- DEBUG: PROMPT START ----------------"
-          cat /tmp/prompt.txt
-          echo "---------------- DEBUG: PROMPT END ------------------"
-
-          # 3. Call GitHub Models
-          # Note: openai/gpt-4o is smarter at following strict rules than mini, 
-          # but let's try mini with the strict prompt first.
-          if gh models run openai/gpt-4o-mini < /tmp/prompt.txt > /tmp/changelog_raw.md 2>/tmp/ai_error.log; then
-            echo "AI changelog generated successfully"
-            cat /tmp/changelog_raw.md > /tmp/changelog.md
-            echo "ai_success=true" >> $GITHUB_OUTPUT
-          else
-            echo "AI generation failed, using fallback"
-            cat /tmp/ai_error.log || true
+          Task: Write a concise changelog based on the provided Code Diff and Commits.
           
-            # Fallback
+          Context:
+          - PR Title: ${{ steps.pr_info.outputs.pr_title }}
+          - Files: ${{ steps.pr_info.outputs.changed_files }}
+          - Commits: ${{ steps.pr_info.outputs.commits }}
+          
+          CODE DIFF (TRUNCATED):
+          ${{ steps.pr_info.outputs.diff }}
+          
+          Strict Rules:
+          1. Do NOT hallucinate features that are not in the Code Diff.
+          2. If the diff contains only CI/CD or workflow files, summarize it as 'Internal CI improvements'.
+          3. Do NOT make up version numbers.
+          4. Format:
+             ## Summary
+             [One sentence summary]
+             ## Changes
+             - [Change 1]
+             - [Change 2]
+          "
+
+          # 2. Build JSON Payload using jq to handle special characters safely
+          # This prevents the workflow from crashing if commits have quotes
+          jq -n \
+            --arg content "$PROMPT_CONTENT" \
+            '{
+              model: "gpt-4o-mini",
+              messages: [
+                {role: "system", content: "You are a helpful, factual assistant."},
+                {role: "user", content: $content}
+              ],
+              temperature: 0.2
+            }' > /tmp/payload.json
+
+          # 3. Call OpenAI API
+          echo "Calling OpenAI API..."
+          curl https://api.openai.com/v1/chat/completions \
+            -s \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -d @/tmp/payload.json \
+            > /tmp/response.json
+
+          # 4. Extract content
+          CHANGELOG_TEXT=$(cat /tmp/response.json | jq -r '.choices[0].message.content')
+
+          # 5. Validate Output (Fallback if empty or null)
+          if [ "$CHANGELOG_TEXT" == "null" ] || [ -z "$CHANGELOG_TEXT" ]; then
+            echo "AI generation failed. Response content:"
+            cat /tmp/response.json
+          
+            # Create Fallback File
             cat > /tmp/changelog.md << 'FALLBACK_EOF'
           ## Summary
           ${{ steps.pr_info.outputs.pr_title }}
           ## Changes
           ${{ steps.pr_info.outputs.commits }}
           FALLBACK_EOF
-            echo "ai_success=false" >> $GITHUB_OUTPUT
+          else
+            echo "AI Changelog generated successfully."
+            echo "$CHANGELOG_TEXT" > /tmp/changelog.md
           fi
 
-          # 4. Assemble Full Comment
+          # 6. Assemble Final Comment File (Header + Content + Footer)
           cat > /tmp/full_comment.md << 'EOF'
           # 🤖 AI-Generated Changelog
 
@@ -141,11 +144,8 @@ jobs:
           cat >> /tmp/full_comment.md << 'EOF'
 
           ---
-          <sub>This changelog was automatically generated using GitHub Models.</sub>
+          <sub>Generated by OpenAI gpt-4o-mini via GitHub Actions.</sub>
           EOF
-
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Find existing changelog comment
         id: find_comment
