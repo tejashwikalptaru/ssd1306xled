@@ -1,6 +1,5 @@
 /*
  * SSD1306xLED - Drivers for SSD1306 controlled dot matrix OLED/PLED 128x64 displays
- *
  * @created: 2014-08-12
  * @author: Neven Boyanov
  *

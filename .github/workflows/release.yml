@@ -4,17 +4,17 @@ on:
   push:
     branches:
       - master
-    paths:
-      - '**.cpp'
-      - '**.h'
-      - 'library.json'
-      - 'library.properties'
-      - 'examples/**'
+#    paths:
+#      - '**.cpp'
+#      - '**.h'
+#      - 'library.json'
+#      - 'library.properties'
+#      - 'examples/**'
 
 permissions:
   contents: write
-  actions: read       # Required to download artifacts
-  pull-requests: read # Required to read PR labels/info
+  actions: read
+  pull-requests: read
 
 jobs:
   release:
@@ -106,18 +106,14 @@ jobs:
           # Update library.properties
           sed -i "s/^version=.*/version=$VER/" library.properties
 
-      # -----------------------------------------------------------
-      # CRITICAL STEP: Download the specific artifact for this PR
-      # -----------------------------------------------------------
       - name: Download AI Changelog from PR
         if: steps.check_skip.outputs.release_created == 'true' && steps.get_pr.outputs.pr_number != ''
         id: download_log
         uses: dawidd6/action-download-artifact@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: pr-checks.yml   # ⚠️ OPTIONAL: Speed up search by specifying your PR workflow filename
+          workflow: pr-checks.yml
           pr: ${{ steps.get_pr.outputs.pr_number }}
-          # MATCHES YOUR PR WORKFLOW NAME: changelog-pr-{number}
           name: changelog-pr-${{ steps.get_pr.outputs.pr_number }}
           path: /tmp/pr-changelogs/
           if_no_artifact_found: warn
