@@ -57,6 +57,10 @@ void run() {
     - `void ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])`: print entire array with font size 8x16
     - `void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[])`: draws the bitmap to the screen
 
+-  Special functions
+    - `void ssd1306_tiny_init_vertical(void)`: initializes the screen in vertical addressing mode. Please note that at the moment the vertical addressing mode is *not* compatible with any other library functions than basic data and command transfer!
+
+
 ### Contribution
 You can improve this library by your contribution. If you want to improve the code or have a fix for some issues with the library, please feel free to fork this library and submit a new pull request with your changes and description
 
@@ -68,6 +72,8 @@ This code is mainly written by Neven Boyanov, Tinusar team. I replaced their I2C
     - initial release
 - v0.0.2 (July 07, 2024)
     - added 'ssd1306_tiny_init()' to save flash memory if an initial screen fill is not required (~52 bytes shorter)
+- v0.0.3 (January 10, 2026)
+    - added 'ssd1306_tiny_init_vertical()' to initialize the screen for vertical addresing mode
 
 
 
