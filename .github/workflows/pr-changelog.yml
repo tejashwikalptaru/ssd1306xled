@@ -9,7 +9,8 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  models: read
+  # models permission is usually implied by GH_TOKEN for beta users,
+  # but checking your org settings is good.
 
 jobs:
   generate-changelog:
@@ -31,21 +32,24 @@ jobs:
       - name: Get PR information
         id: pr_info
         run: |
-          # Get PR title and description
           PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
-
-          # Get list of changed files
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | head -20)
-
-          # Get commit messages
-          COMMITS=$(git log origin/${{ github.base_ref }}..HEAD --pretty=format:"- %s" --no-merges | head -20)
-
-          # Get diff summary
+          
+          # Get commits (limit to last 15 to prevent token overflow)
+          COMMITS=$(git log origin/${{ github.base_ref }}..HEAD --pretty=format:"- %s" --no-merges | head -15)
+          
+          # Get file list
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | head -15)
+          
+          # Get stats
           DIFF_STAT=$(git diff origin/${{ github.base_ref }}...HEAD --stat | tail -1)
 
-          # Save to environment
+          # Handle empty commits case
+          if [ -z "$COMMITS" ]; then
+            COMMITS="No commit messages found."
+          fi
+
           echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          
           echo "changed_files<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -60,48 +64,54 @@ jobs:
         id: ai_changelog
         continue-on-error: true
         run: |
-          # Create prompt for AI
+          # 1. Create a Strict Prompt
           cat > /tmp/prompt.txt << 'PROMPT_EOF'
-          You are a technical writer generating release notes for an Arduino library.
+          You are an automated changelog assistant. Your ONLY job is to summarize the provided Commit Messages and PR Title into a list.
+          
+          ⛔ **STRICT RULES - READ CAREFULLY:**
+          1. **DO NOT** invent features.
+          2. **DO NOT** make up version numbers (like v1.2.0).
+          3. **DO NOT** write a generic introduction about "enhancing development experience."
+          4. **ONLY** use the "Source Data" below.
+          5. If the commit messages are vague, just list them as they are.
 
-          **Project:** ssd1306xled - OLED display driver library for ATtiny85 microcontrollers
+          ---
+          **SOURCE DATA:**
 
+          **Project Name:** ssd1306xled
           **PR Title:** ${{ steps.pr_info.outputs.pr_title }}
 
           **Changed Files:**
           ${{ steps.pr_info.outputs.changed_files }}
 
-          **Commit Messages:**
+          **Commit Messages (The Truth):**
           ${{ steps.pr_info.outputs.commits }}
 
           **Diff Stats:** ${{ steps.pr_info.outputs.diff_stat }}
+          ---
 
-          Generate a concise, user-friendly changelog entry in the following format:
+          **OUTPUT FORMAT (Markdown):**
 
           ## Summary
-          [One clear sentence describing the main purpose of this PR]
+          [1 sentence summarizing the PR Title]
 
-          ## Changes
-          - **Feature:** [New capabilities added, if any]
-          - **Fix:** [Bugs fixed, if any]
-          - **Improvement:** [Enhancements made, if any]
-          - **Documentation:** [Documentation updates, if any]
+          ## 🛠 Changes
+          - [Bullet point derived ONLY from Commit Messages]
+          - [Bullet point derived ONLY from Commit Messages]
 
-          ## Impact
-          [Brief description of how this affects users]
+          ## 📄 Files
+          - [List top 3 important files changed]
 
-          **Guidelines:**
-          - Keep it under 200 words
-          - Focus on user impact, not technical implementation details
-          - Use clear, non-technical language where possible
-          - Only include sections that are relevant (skip sections with no changes)
-          - Highlight any breaking changes with ⚠️
-          - Be specific and actionable
-
-          Generate the changelog now:
           PROMPT_EOF
 
-          # Call GitHub Models (with fallback)
+          # 2. DEBUG: Print the prompt to logs so we can see what the AI sees
+          echo "---------------- DEBUG: PROMPT START ----------------"
+          cat /tmp/prompt.txt
+          echo "---------------- DEBUG: PROMPT END ------------------"
+
+          # 3. Call GitHub Models
+          # Note: openai/gpt-4o is smarter at following strict rules than mini, 
+          # but let's try mini with the strict prompt first.
           if gh models run openai/gpt-4o-mini < /tmp/prompt.txt > /tmp/changelog_raw.md 2>/tmp/ai_error.log; then
             echo "AI changelog generated successfully"
             cat /tmp/changelog_raw.md > /tmp/changelog.md
@@ -109,38 +119,29 @@ jobs:
           else
             echo "AI generation failed, using fallback"
             cat /tmp/ai_error.log || true
-
-            # Fallback to basic changelog
+          
+            # Fallback
             cat > /tmp/changelog.md << 'FALLBACK_EOF'
           ## Summary
           ${{ steps.pr_info.outputs.pr_title }}
-
           ## Changes
           ${{ steps.pr_info.outputs.commits }}
-
-          ## Files Changed
-          ```
-          ${{ steps.pr_info.outputs.changed_files }}
-          ```
-
-          *Note: AI changelog generation unavailable. This is a basic summary.*
           FALLBACK_EOF
             echo "ai_success=false" >> $GITHUB_OUTPUT
           fi
 
+          # 4. Assemble Full Comment
           cat > /tmp/full_comment.md << 'EOF'
           # 🤖 AI-Generated Changelog
 
           EOF
           
-          # Append the generated content
           cat /tmp/changelog.md >> /tmp/full_comment.md
           
-          # Append the footer
           cat >> /tmp/full_comment.md << 'EOF'
 
           ---
-          <sub>This changelog was automatically generated using GitHub Models. It will be used as the release notes when this PR is merged.</sub>
+          <sub>This changelog was automatically generated using GitHub Models.</sub>
           EOF
 
         env:
