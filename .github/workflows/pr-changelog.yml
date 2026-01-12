@@ -28,21 +28,30 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           BASE_REF: origin/${{ github.base_ref }}
         run: |
+          # 1. Get Commit Messages (Limit 15)
           COMMITS=$(git log $BASE_REF..HEAD --pretty=format:"- %s" --no-merges | head -15)
+          
+          # 2. Get Changed Files (Limit 15)
           CHANGED_FILES=$(git diff --name-only $BASE_REF...HEAD | head -15)
-          # Gemini has a huge context window, so we can increase the diff limit safely to 10000 chars
+          
+          # 3. Get Actual Diff (Limit 10k chars for Gemini)
+          # Exclude lockfiles
           RAW_DIFF=$(git diff $BASE_REF...HEAD -- . ':(exclude)package-lock.json' ':(exclude)*.lock')
           DIFF=$(echo "$RAW_DIFF" | head -c 10000)
 
           if [ -z "$COMMITS" ]; then COMMITS="No commit messages found."; fi
 
+          # Safe output to GITHUB_OUTPUT
           echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          
           echo "changed_files<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
           echo "commits<<EOF" >> $GITHUB_OUTPUT
           echo "$COMMITS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+          
           echo "diff<<EOF" >> $GITHUB_OUTPUT
           echo "$DIFF" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -84,17 +93,16 @@ jobs:
           END_PROMPT
           )
 
-          # 2. Build JSON Payload for Gemini
-          # Gemini structure: { contents: [{ parts: [{ text: "..." }] }] }
+          # 2. Build JSON Payload
           jq -n \
             --arg text "$PROMPT_CONTENT" \
             '{
               contents: [{ parts: [{ text: $text }] }]
             }' > /tmp/payload.json
 
-          # 3. Call Gemini API
+          # 3. Call Gemini API (FIXED URL)
           echo "Calling Gemini API..."
-          curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
+          curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$GEMINI_API_KEY" \
             -s \
             -H "Content-Type: application/json" \
             -d @/tmp/payload.json \
@@ -107,6 +115,8 @@ jobs:
           if [ "$CHANGELOG_TEXT" == "null" ] || [ -z "$CHANGELOG_TEXT" ]; then
             echo "AI generation failed. Response content:"
             cat /tmp/response.json
+          
+            # Fallback
             cat > /tmp/changelog.md <<FALLBACK_EOF
           ## Summary
           $PR_TITLE
@@ -145,3 +155,10 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
           body-path: /tmp/full_comment.md
+
+      - name: Save changelog artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-pr-${{ github.event.pull_request.number }}
+          path: /tmp/changelog.md
+          retention-days: 30
