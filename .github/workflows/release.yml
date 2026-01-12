@@ -4,12 +4,14 @@ on:
   push:
     branches:
       - master
-#    paths:
-#      - '**.cpp'
-#      - '**.h'
-#      - 'library.json'
-#      - 'library.properties'
-#      - 'examples/**'
+    paths:
+      - '**.cpp'
+      - '**.c'
+      - '**.h'
+      - '**.ino'
+      - 'library.json'
+      - 'library.properties'
+      - 'examples/**'
 
 permissions:
   contents: write
