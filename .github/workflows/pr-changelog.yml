@@ -1,4 +1,4 @@
-name: AI Changelog Generator
+name: AI Changelog Generator (Gemini Free)
 
 on:
   pull_request:
@@ -24,62 +24,42 @@ jobs:
 
       - name: Get PR information
         id: pr_info
-        # SAFE PATTERN: Pass raw data via env to avoid syntax errors
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           BASE_REF: origin/${{ github.base_ref }}
         run: |
-          # 1. Get Commit Messages (Limit 15)
-          # We use the environment variable $BASE_REF safely
           COMMITS=$(git log $BASE_REF..HEAD --pretty=format:"- %s" --no-merges | head -15)
-          
-          # 2. Get Changed Files (Limit 15)
           CHANGED_FILES=$(git diff --name-only $BASE_REF...HEAD | head -15)
-          
-          # 3. Get Actual Diff (Truncated)
-          # Exclude lockfiles to save space
+          # Gemini has a huge context window, so we can increase the diff limit safely to 10000 chars
           RAW_DIFF=$(git diff $BASE_REF...HEAD -- . ':(exclude)package-lock.json' ':(exclude)*.lock')
-          DIFF=$(echo "$RAW_DIFF" | head -c 3000)
+          DIFF=$(echo "$RAW_DIFF" | head -c 10000)
 
-          # Handle empty commits case
-          if [ -z "$COMMITS" ]; then
-            COMMITS="No commit messages found."
-          fi
+          if [ -z "$COMMITS" ]; then COMMITS="No commit messages found."; fi
 
-          # Output variables safely using heredocs
-          # We use "EOF" (quoted) to prevent variable expansion inside the block marker logic itself
-          
           echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
-          
           echo "changed_files<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
           echo "commits<<EOF" >> $GITHUB_OUTPUT
           echo "$COMMITS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
           echo "diff<<EOF" >> $GITHUB_OUTPUT
           echo "$DIFF" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Generate changelog with AI
+      - name: Generate changelog with Gemini
         id: ai_changelog
         continue-on-error: true
-        # SAFE PATTERN: Map all inputs to env vars here
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PR_TITLE: ${{ steps.pr_info.outputs.pr_title }}
           PR_FILES: ${{ steps.pr_info.outputs.changed_files }}
           PR_COMMITS: ${{ steps.pr_info.outputs.commits }}
           PR_DIFF: ${{ steps.pr_info.outputs.diff }}
         run: |
           # 1. Prepare Prompt Content
-          # We use a distinct EOF marker for the prompt content variable
-          
           PROMPT_CONTENT=$(cat <<END_PROMPT
           You are a senior technical writer.
-          
           Task: Write a concise changelog based on the provided Code Diff and Commits.
           
           Context:
@@ -89,14 +69,13 @@ jobs:
           - Commits: 
           $PR_COMMITS
           
-          CODE DIFF (TRUNCATED):
+          CODE DIFF:
           $PR_DIFF
           
           Strict Rules:
-          1. Do NOT hallucinate features that are not in the Code Diff.
-          2. If the diff contains only CI/CD or workflow files, summarize it as 'Internal CI improvements'.
-          3. Do NOT make up version numbers.
-          4. Format:
+          1. Do NOT hallucinate features.
+          2. If the diff is only CI/CD, summarize as 'Internal CI improvements'.
+          3. Format:
              ## Summary
              [One sentence summary]
              ## Changes
@@ -105,37 +84,29 @@ jobs:
           END_PROMPT
           )
 
-          # 2. Build JSON Payload using jq
-          # jq handles the escaping of newlines and quotes safely
+          # 2. Build JSON Payload for Gemini
+          # Gemini structure: { contents: [{ parts: [{ text: "..." }] }] }
           jq -n \
-            --arg content "$PROMPT_CONTENT" \
+            --arg text "$PROMPT_CONTENT" \
             '{
-              model: "gpt-4o-mini",
-              messages: [
-                {role: "system", content: "You are a helpful, factual assistant."},
-                {role: "user", content: $content}
-              ],
-              temperature: 0.2
+              contents: [{ parts: [{ text: $text }] }]
             }' > /tmp/payload.json
 
-          # 3. Call OpenAI API
-          echo "Calling OpenAI API..."
-          curl https://api.openai.com/v1/chat/completions \
+          # 3. Call Gemini API
+          echo "Calling Gemini API..."
+          curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
             -s \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
             -d @/tmp/payload.json \
             > /tmp/response.json
 
           # 4. Extract content
-          CHANGELOG_TEXT=$(cat /tmp/response.json | jq -r '.choices[0].message.content')
+          CHANGELOG_TEXT=$(cat /tmp/response.json | jq -r '.candidates[0].content.parts[0].text')
 
           # 5. Validate Output
           if [ "$CHANGELOG_TEXT" == "null" ] || [ -z "$CHANGELOG_TEXT" ]; then
             echo "AI generation failed. Response content:"
             cat /tmp/response.json
-          
-            # Create Fallback File
             cat > /tmp/changelog.md <<FALLBACK_EOF
           ## Summary
           $PR_TITLE
@@ -147,19 +118,16 @@ jobs:
             echo "$CHANGELOG_TEXT" > /tmp/changelog.md
           fi
 
-          # 6. Assemble Final Comment File
-          # Ensure EOF is not indented
+          # 6. Assemble Final Comment
           cat > /tmp/full_comment.md <<EOF
           # 🤖 AI-Generated Changelog
 
           EOF
-          
           cat /tmp/changelog.md >> /tmp/full_comment.md
-          
           cat >> /tmp/full_comment.md <<EOF
 
           ---
-          <sub>Generated by OpenAI gpt-4o-mini via GitHub Actions.</sub>
+          <sub>Generated by Google Gemini Flash (Free Tier).</sub>
           EOF
 
       - name: Find existing changelog comment
@@ -177,10 +145,3 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
           body-path: /tmp/full_comment.md
-
-      - name: Save changelog artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: changelog-pr-${{ github.event.pull_request.number }}
-          path: /tmp/changelog.md
-          retention-days: 30
