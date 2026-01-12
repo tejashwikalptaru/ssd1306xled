@@ -96,62 +96,86 @@ jobs:
           fi
           echo "Version sync verified: $JSON_VER"
 
+      - name: Download AI changelog (if available)
+        if: steps.check_skip.outputs.release_created == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: changelog-pr-*
+          path: /tmp/pr-changelogs/
+          merge-multiple: true
+
       - name: Generate changelog
         if: steps.check_skip.outputs.release_created == 'true'
         id: changelog
         run: |
-          # Get last tag
+          # Get last tag for full changelog link
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
           echo "Last tag: $LAST_TAG"
 
-          # Generate changelog
-          {
-            echo "## What's Changed"
-            echo ""
+          # Try to use AI-generated changelog from PR
+          if [ -f "/tmp/pr-changelogs/changelog.md" ]; then
+            echo "📝 Using AI-generated changelog from PR"
+            cat /tmp/pr-changelogs/changelog.md > /tmp/changelog.md
 
-            if [ -z "$LAST_TAG" ]; then
-              echo "Initial release of ssd1306xled library"
-              echo ""
-              echo "### Features"
-              git log --pretty=format:"- %s (%h)" --no-merges
-            else
-              # Get commits since last tag
-              COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s|||%h" --no-merges)
-
-              # Categorize commits
-              FEATURES=$(echo "$COMMITS" | grep -i "^feat" || true)
-              FIXES=$(echo "$COMMITS" | grep -i "^fix" || true)
-              OTHERS=$(echo "$COMMITS" | grep -v -i "^feat\|^fix" || true)
-
-              if [ -n "$FEATURES" ]; then
-                echo "### Features"
-                echo "$FEATURES" | while IFS='|||' read -r msg hash; do
-                  echo "- $msg ($hash)"
-                done
-                echo ""
-              fi
-
-              if [ -n "$FIXES" ]; then
-                echo "### Bug Fixes"
-                echo "$FIXES" | while IFS='|||' read -r msg hash; do
-                  echo "- $msg ($hash)"
-                done
-                echo ""
-              fi
-
-              if [ -n "$OTHERS" ]; then
-                echo "### Other Changes"
-                echo "$OTHERS" | while IFS='|||' read -r msg hash; do
-                  echo "- $msg ($hash)"
-                done
-                echo ""
-              fi
-
-              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.bump.outputs.new_version }}"
+            # Append full changelog link
+            echo "" >> /tmp/changelog.md
+            echo "---" >> /tmp/changelog.md
+            if [ -n "$LAST_TAG" ]; then
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.bump.outputs.new_version }}" >> /tmp/changelog.md
             fi
-          } > /tmp/changelog.md
+          else
+            echo "📝 Generating basic changelog from commits (AI changelog not found)"
 
+            # Fallback: Generate changelog from commits
+            {
+              echo "## What's Changed"
+              echo ""
+
+              if [ -z "$LAST_TAG" ]; then
+                echo "Initial release of ssd1306xled library"
+                echo ""
+                echo "### Features"
+                git log --pretty=format:"- %s (%h)" --no-merges
+              else
+                # Get commits since last tag
+                COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s|||%h" --no-merges)
+
+                # Categorize commits
+                FEATURES=$(echo "$COMMITS" | grep -i "^feat" || true)
+                FIXES=$(echo "$COMMITS" | grep -i "^fix" || true)
+                OTHERS=$(echo "$COMMITS" | grep -v -i "^feat\|^fix" || true)
+
+                if [ -n "$FEATURES" ]; then
+                  echo "### Features"
+                  echo "$FEATURES" | while IFS='|||' read -r msg hash; do
+                    echo "- $msg ($hash)"
+                  done
+                  echo ""
+                fi
+
+                if [ -n "$FIXES" ]; then
+                  echo "### Bug Fixes"
+                  echo "$FIXES" | while IFS='|||' read -r msg hash; do
+                    echo "- $msg ($hash)"
+                  done
+                  echo ""
+                fi
+
+                if [ -n "$OTHERS" ]; then
+                  echo "### Other Changes"
+                  echo "$OTHERS" | while IFS='|||' read -r msg hash; do
+                    echo "- $msg ($hash)"
+                  done
+                  echo ""
+                fi
+
+                echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.bump.outputs.new_version }}"
+              fi
+            } > /tmp/changelog.md
+          fi
+
+          echo "📄 Final changelog:"
           cat /tmp/changelog.md
 
       - name: Commit version bump

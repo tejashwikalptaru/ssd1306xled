@@ -1,0 +1,159 @@
+name: AI Changelog Generator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - master
+
+permissions:
+  contents: read
+  pull-requests: write
+  models: read
+
+jobs:
+  generate-changelog:
+    name: Generate AI Changelog
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Get PR information
+        id: pr_info
+        run: |
+          # Get PR title and description
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | head -20)
+
+          # Get commit messages
+          COMMITS=$(git log origin/${{ github.base_ref }}..HEAD --pretty=format:"- %s" --no-merges | head -20)
+
+          # Get diff summary
+          DIFF_STAT=$(git diff origin/${{ github.base_ref }}...HEAD --stat | tail -1)
+
+          # Save to environment
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "diff_stat=$DIFF_STAT" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog with AI
+        id: ai_changelog
+        continue-on-error: true
+        run: |
+          # Create prompt for AI
+          cat > /tmp/prompt.txt << 'PROMPT_EOF'
+          You are a technical writer generating release notes for an Arduino library.
+
+          **Project:** ssd1306xled - OLED display driver library for ATtiny85 microcontrollers
+
+          **PR Title:** ${{ steps.pr_info.outputs.pr_title }}
+
+          **Changed Files:**
+          ${{ steps.pr_info.outputs.changed_files }}
+
+          **Commit Messages:**
+          ${{ steps.pr_info.outputs.commits }}
+
+          **Diff Stats:** ${{ steps.pr_info.outputs.diff_stat }}
+
+          Generate a concise, user-friendly changelog entry in the following format:
+
+          ## Summary
+          [One clear sentence describing the main purpose of this PR]
+
+          ## Changes
+          - **Feature:** [New capabilities added, if any]
+          - **Fix:** [Bugs fixed, if any]
+          - **Improvement:** [Enhancements made, if any]
+          - **Documentation:** [Documentation updates, if any]
+
+          ## Impact
+          [Brief description of how this affects users]
+
+          **Guidelines:**
+          - Keep it under 200 words
+          - Focus on user impact, not technical implementation details
+          - Use clear, non-technical language where possible
+          - Only include sections that are relevant (skip sections with no changes)
+          - Highlight any breaking changes with ⚠️
+          - Be specific and actionable
+
+          Generate the changelog now:
+          PROMPT_EOF
+
+          # Call GitHub Models (with fallback)
+          if gh models run gpt-4o-mini < /tmp/prompt.txt > /tmp/changelog_raw.md 2>/tmp/ai_error.log; then
+            echo "AI changelog generated successfully"
+            cat /tmp/changelog_raw.md > /tmp/changelog.md
+            echo "ai_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "AI generation failed, using fallback"
+            cat /tmp/ai_error.log || true
+
+            # Fallback to basic changelog
+            cat > /tmp/changelog.md << 'FALLBACK_EOF'
+          ## Summary
+          ${{ steps.pr_info.outputs.pr_title }}
+
+          ## Changes
+          ${{ steps.pr_info.outputs.commits }}
+
+          ## Files Changed
+          ```
+          ${{ steps.pr_info.outputs.changed_files }}
+          ```
+
+          *Note: AI changelog generation unavailable. This is a basic summary.*
+          FALLBACK_EOF
+            echo "ai_success=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Save changelog
+          cat /tmp/changelog.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Find existing changelog comment
+        id: find_comment
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- ai-changelog -->'
+
+      - name: Create or update changelog comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body: |
+            <!-- ai-changelog -->
+            # 🤖 AI-Generated Changelog
+
+            $(cat /tmp/changelog.md)
+
+            ---
+            <sub>This changelog was automatically generated using GitHub Models. It will be used as the release notes when this PR is merged.</sub>
+
+      - name: Save changelog artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-pr-${{ github.event.pull_request.number }}
+          path: /tmp/changelog.md
+          retention-days: 30
