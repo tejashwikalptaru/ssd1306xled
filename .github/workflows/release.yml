@@ -1,0 +1,210 @@
+name: Release and Publish
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - 'library.json'
+      - 'library.properties'
+      - 'examples/**'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      release_created: ${{ steps.check_skip.outputs.release_created }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if commit should skip release
+        id: check_skip
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+
+          if echo "$COMMIT_MSG" | grep -q "chore: bump version"; then
+            echo "Skipping release for version bump commit"
+            echo "release_created=false" >> $GITHUB_OUTPUT
+          else
+            echo "release_created=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure Git
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        if: steps.check_skip.outputs.release_created == 'true'
+        id: bump
+        run: |
+          # Read current version
+          CURRENT_VERSION=$(jq -r '.version' library.json)
+          echo "Current version: $CURRENT_VERSION"
+
+          # Split version into components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          # Increment patch version
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update library.json
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          jq --arg ver "$NEW_VERSION" '.version = $ver' library.json > library.json.tmp
+          mv library.json.tmp library.json
+          cat library.json
+
+      - name: Update library.properties
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          sed -i "s/^version=.*/version=$NEW_VERSION/" library.properties
+          cat library.properties
+
+      - name: Verify version sync
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          JSON_VER=$(jq -r '.version' library.json)
+          PROP_VER=$(grep "^version=" library.properties | cut -d'=' -f2)
+
+          echo "library.json version: $JSON_VER"
+          echo "library.properties version: $PROP_VER"
+
+          if [ "$JSON_VER" != "$PROP_VER" ]; then
+            echo "ERROR: Version update failed - versions don't match!"
+            exit 1
+          fi
+          echo "Version sync verified: $JSON_VER"
+
+      - name: Generate changelog
+        if: steps.check_skip.outputs.release_created == 'true'
+        id: changelog
+        run: |
+          # Get last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          echo "Last tag: $LAST_TAG"
+
+          # Generate changelog
+          {
+            echo "## What's Changed"
+            echo ""
+
+            if [ -z "$LAST_TAG" ]; then
+              echo "Initial release of ssd1306xled library"
+              echo ""
+              echo "### Features"
+              git log --pretty=format:"- %s (%h)" --no-merges
+            else
+              # Get commits since last tag
+              COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s|||%h" --no-merges)
+
+              # Categorize commits
+              FEATURES=$(echo "$COMMITS" | grep -i "^feat" || true)
+              FIXES=$(echo "$COMMITS" | grep -i "^fix" || true)
+              OTHERS=$(echo "$COMMITS" | grep -v -i "^feat\|^fix" || true)
+
+              if [ -n "$FEATURES" ]; then
+                echo "### Features"
+                echo "$FEATURES" | while IFS='|||' read -r msg hash; do
+                  echo "- $msg ($hash)"
+                done
+                echo ""
+              fi
+
+              if [ -n "$FIXES" ]; then
+                echo "### Bug Fixes"
+                echo "$FIXES" | while IFS='|||' read -r msg hash; do
+                  echo "- $msg ($hash)"
+                done
+                echo ""
+              fi
+
+              if [ -n "$OTHERS" ]; then
+                echo "### Other Changes"
+                echo "$OTHERS" | while IFS='|||' read -r msg hash; do
+                  echo "- $msg ($hash)"
+                done
+                echo ""
+              fi
+
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.bump.outputs.new_version }}"
+            fi
+          } > /tmp/changelog.md
+
+          cat /tmp/changelog.md
+
+      - name: Commit version bump
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          git add library.json library.properties
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
+
+      - name: Create and push tag
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          TAG="v${{ steps.bump.outputs.new_version }}"
+          git tag -a "$TAG" -m "Release $TAG"
+
+          # Push commit and tag
+          git push origin master
+          git push origin "$TAG"
+
+          echo "Created and pushed tag: $TAG"
+
+      - name: Create GitHub Release (DRAFT)
+        if: steps.check_skip.outputs.release_created == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          name: Release v${{ steps.bump.outputs.new_version }}
+          body_path: /tmp/changelog.md
+          draft: true
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-platformio:
+    name: Publish to PlatformIO Registry
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code (with new version)
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Wait for tag to be available
+        run: |
+          sleep 5
+          git fetch --tags
+          git describe --tags
+
+      - name: Publish to PlatformIO Registry
+        uses: bojit/platformio-publish@v1.0.0
+        with:
+          token: ${{ secrets.PLATFORMIO_TOKEN }}
