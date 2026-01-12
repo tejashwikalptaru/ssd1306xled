@@ -123,8 +123,21 @@ jobs:
             echo "ai_success=false" >> $GITHUB_OUTPUT
           fi
 
-          # Save changelog
-          cat /tmp/changelog.md
+          cat > /tmp/full_comment.md << 'EOF'
+          # 🤖 AI-Generated Changelog
+
+          EOF
+          
+          # Append the generated content
+          cat /tmp/changelog.md >> /tmp/full_comment.md
+          
+          # Append the footer
+          cat >> /tmp/full_comment.md << 'EOF'
+
+          ---
+          <sub>This changelog was automatically generated using GitHub Models. It will be used as the release notes when this PR is merged.</sub>
+          EOF
+
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -134,7 +147,7 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
-          body-includes: '<!-- ai-changelog -->'
+          body-includes: ''
 
       - name: Create or update changelog comment
         uses: peter-evans/create-or-update-comment@v4
@@ -142,14 +155,7 @@ jobs:
           comment-id: ${{ steps.find_comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
-          body: |
-            <!-- ai-changelog -->
-            # 🤖 AI-Generated Changelog
-
-            $(cat /tmp/changelog.md)
-
-            ---
-            <sub>This changelog was automatically generated using GitHub Models. It will be used as the release notes when this PR is merged.</sub>
+          body-path: /tmp/full_comment.md
 
       - name: Save changelog artifact
         uses: actions/upload-artifact@v4
