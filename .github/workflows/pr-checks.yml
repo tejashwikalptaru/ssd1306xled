@@ -13,6 +13,10 @@ on:
       - 'examples/**'
       - '.github/workflows/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-library:
     name: Validate Library Metadata
