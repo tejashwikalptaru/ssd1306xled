@@ -102,7 +102,7 @@ jobs:
           PROMPT_EOF
 
           # Call GitHub Models (with fallback)
-          if gh models run gpt-4o-mini < /tmp/prompt.txt > /tmp/changelog_raw.md 2>/tmp/ai_error.log; then
+          if gh models run openai/gpt-4o-mini < /tmp/prompt.txt > /tmp/changelog_raw.md 2>/tmp/ai_error.log; then
             echo "AI changelog generated successfully"
             cat /tmp/changelog_raw.md > /tmp/changelog.md
             echo "ai_success=true" >> $GITHUB_OUTPUT
