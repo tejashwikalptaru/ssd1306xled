@@ -46,6 +46,27 @@ const uint8_t ssd1306_init_sequence [] PROGMEM = {	// Initialization Sequence
 	0xAF,			// Set Display ON/OFF - AE=OFF, AF=ON
 };
 
+const uint8_t ssd1306_init_sequence_vertical_addressing_mode [] PROGMEM = {	// Initialization Sequence for Vertical Addressing Mode
+	0xAE,			// Set Display ON/OFF - AE=OFF, AF=ON
+	0xD5, 0xF0,		// Set display clock divide ratio/oscillator frequency, set divide ratio
+	0xA8, 0x3F,		// Set multiplex ratio (1 to 64) ... (height - 1)
+	0xD3, 0x00,		// Set display offset. 00 = no offset
+	0x40 | 0x00,	// Set start line address, at 0.
+	0x8D, 0x14,		// Charge Pump Setting, 14h = Enable Charge Pump
+	0x20, 0x01,		// Set Memory Addressing Mode - 00=Horizontal, 01=Vertical, 10=Page, 11=Invalid
+	0x21, 0x00, 0x7f,		// Set Column Address - start address (0x00), end address (0x7f)
+	0xA0 | 0x01,	// Set Segment Re-map
+	0xC8,			// Set COM Output Scan Direction
+	0xDA, 0x12,		// Set COM Pins Hardware Configuration - 128x32:0x02, 128x64:0x12
+	0x81, 0x3F,		// Set contrast control register
+	0xD9, 0x22,		// Set pre-charge period (0x22 or 0xF1)
+	0xDB, 0x20,		// Set Vcomh Deselect Level - 0x00: 0.65 x VCC, 0x20: 0.77 x VCC (RESET), 0x30: 0.83 x VCC
+	0xA4,			// Entire Display ON (resume) - output RAM to display
+	0xA6,			// Set Normal/Inverse Display mode. A6=Normal; A7=Inverse
+	0x2E,			// Deactivate Scroll command
+	0xAF,			// Set Display ON/OFF - AE=OFF, AF=ON
+};
+
 // Program:    5248 bytes
 
 SSD1306Device::SSD1306Device(void){}
@@ -173,6 +194,20 @@ void SSD1306Device::ssd1306_tiny_init(void)
 	ssd1306_send_command_start();
 	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence); i++) {
 		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence[i]));
+	}
+	ssd1306_send_command_stop();
+	// save 52 bytes :)
+	//ssd1306_fillscreen(0);
+}
+
+// An alternate version of 'ssd1306_tiny_init()' which enables the vertical addressing mode.
+// The code of 'ssd1306_tiny_init()' is replicated to allow the linker to drop the unused method during linkage.
+void SSD1306Device::ssd1306_tiny_init_vertical(void)
+{
+	begin();
+	ssd1306_send_command_start();
+	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence_vertical_addressing_mode); i++) {
+		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence_vertical_addressing_mode[i]));
 	}
 	ssd1306_send_command_stop();
 	// save 52 bytes :)
