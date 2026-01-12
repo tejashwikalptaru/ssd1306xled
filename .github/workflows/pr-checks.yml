@@ -1,0 +1,197 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - '**.ino'
+      - 'library.json'
+      - 'library.properties'
+      - 'examples/**'
+      - '.github/workflows/**'
+
+jobs:
+  validate-library:
+    name: Validate Library Metadata
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate library.json format
+        run: |
+          echo "Validating library.json..."
+          python3 -m json.tool library.json > /dev/null
+
+          echo "Checking required fields..."
+          jq -e '.name' library.json > /dev/null
+          jq -e '.version' library.json > /dev/null
+          jq -e '.frameworks' library.json > /dev/null
+          jq -e '.platforms' library.json > /dev/null
+
+          echo "library.json validation passed!"
+
+      - name: Validate library.properties format
+        run: |
+          echo "Validating library.properties..."
+
+          # Check required fields exist
+          grep -q "^name=" library.properties || { echo "Missing 'name' field"; exit 1; }
+          grep -q "^version=" library.properties || { echo "Missing 'version' field"; exit 1; }
+          grep -q "^author=" library.properties || { echo "Missing 'author' field"; exit 1; }
+          grep -q "^maintainer=" library.properties || { echo "Missing 'maintainer' field"; exit 1; }
+          grep -q "^sentence=" library.properties || { echo "Missing 'sentence' field"; exit 1; }
+          grep -q "^category=" library.properties || { echo "Missing 'category' field"; exit 1; }
+
+          echo "library.properties validation passed!"
+
+      - name: Check version synchronization
+        run: |
+          echo "Checking version sync between library.json and library.properties..."
+
+          JSON_VER=$(jq -r '.version' library.json)
+          PROP_VER=$(grep "^version=" library.properties | cut -d'=' -f2 | tr -d '[:space:]')
+
+          echo "library.json version: $JSON_VER"
+          echo "library.properties version: $PROP_VER"
+
+          if [ "$JSON_VER" != "$PROP_VER" ]; then
+            echo "ERROR: Version mismatch detected!"
+            echo "Please ensure both files have the same version number."
+            exit 1
+          fi
+
+          echo "Version sync OK: $JSON_VER"
+
+  compile-library:
+    name: Compile Library
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: ${{ runner.os }}-pio-${{ hashFiles('**/library.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO Core
+        run: |
+          pip install --upgrade pip
+          pip install platformio
+
+      - name: Create test project structure
+        run: |
+          mkdir -p test_project/lib/ssd1306xled
+          cp -r *.cpp *.h *.json test_project/lib/ssd1306xled/
+
+          # Create minimal test source
+          mkdir -p test_project/src
+          cat > test_project/src/main.cpp << 'EOF'
+          #include <Arduino.h>
+          #include <ssd1306xled.h>
+
+          void setup() {
+            SSD1306.ssd1306_init();
+          }
+
+          void loop() {
+            SSD1306.ssd1306_fillscreen(0);
+            delay(1000);
+          }
+          EOF
+
+      - name: Create PlatformIO configuration
+        run: |
+          cat > test_project/platformio.ini << 'EOF'
+          [env:attiny85]
+          platform = atmelavr
+          board = attiny85
+          framework = arduino
+          EOF
+
+      - name: Compile library for atmelavr
+        run: |
+          cd test_project
+          pio run --environment attiny85
+
+  compile-examples:
+    name: Compile Example Sketches
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - OLED_demo
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: ${{ runner.os }}-pio-examples-${{ hashFiles('**/library.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-examples-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO Core
+        run: |
+          pip install --upgrade pip
+          pip install platformio
+
+      - name: Compile example - ${{ matrix.example }}
+        run: |
+          EXAMPLE_DIR="examples/${{ matrix.example }}"
+          EXAMPLE_INO="${{ matrix.example }}.ino"
+
+          echo "Compiling example: $EXAMPLE_DIR/$EXAMPLE_INO"
+
+          # Create test project structure
+          mkdir -p test_build/src
+          mkdir -p test_build/lib/ssd1306xled
+
+          # Copy library files
+          cp *.cpp *.h *.json test_build/lib/ssd1306xled/
+
+          # Copy example files and rename .ino to main.cpp
+          cp $EXAMPLE_DIR/* test_build/src/
+          mv test_build/src/$EXAMPLE_INO test_build/src/main.cpp
+
+          # Create platformio.ini
+          cat > test_build/platformio.ini << 'EOF'
+          [env:attiny85]
+          platform = atmelavr
+          board = attiny85
+          framework = arduino
+          EOF
+
+          # Compile
+          cd test_build
+          pio run --environment attiny85
+
+          echo "Example ${{ matrix.example }} compiled successfully!"

@@ -1,0 +1,191 @@
+name: Release and Publish
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - 'library.json'
+      - 'library.properties'
+      - 'examples/**'
+
+permissions:
+  contents: write
+  actions: read       # Required to download artifacts
+  pull-requests: read # Required to read PR labels/info
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      release_created: ${{ steps.check_skip.outputs.release_created }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Identify Merged PR
+        id: get_pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find the PR number that triggered this merge
+          PR_NUMBER=$(gh pr list --search "${{ github.sha }}" --state merged --json number --jq '.[0].number')
+          
+          if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "null" ]; then
+            echo "✅ Found originating PR: #$PR_NUMBER"
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No PR found (Direct commit to master?)"
+            echo "pr_number=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check conditions (Skip Label & Version Bump)
+        id: check_skip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SKIP="false"
+          MSG=$(git log -1 --pretty=%B)
+          PR_NUM="${{ steps.get_pr.outputs.pr_number }}"
+
+          # 1. Avoid infinite loop
+          if echo "$MSG" | grep -q "chore: bump version"; then
+            echo "🛑 Skipping: Internal version bump commit."
+            SKIP="true"
+          fi
+
+          # 2. Check 'skip-release' label on the PR
+          if [ -n "$PR_NUM" ]; then
+            LABELS=$(gh pr view "$PR_NUM" --json labels --jq '.labels[].name')
+            if echo "$LABELS" | grep -q "skip-release"; then
+              echo "🛑 Skipping: PR #$PR_NUM has 'skip-release' label."
+              SKIP="true"
+            fi
+          fi
+
+          if [ "$SKIP" == "true" ]; then
+            echo "release_created=false" >> $GITHUB_OUTPUT
+          else
+            echo "release_created=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure Git
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        if: steps.check_skip.outputs.release_created == 'true'
+        id: bump
+        run: |
+          CURRENT_VERSION=$(jq -r '.version' library.json)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          echo "Bumping: $CURRENT_VERSION -> $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Files
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          VER="${{ steps.bump.outputs.new_version }}"
+          
+          # Update library.json
+          jq --arg ver "$VER" '.version = $ver' library.json > library.json.tmp && mv library.json.tmp library.json
+          
+          # Update library.properties
+          sed -i "s/^version=.*/version=$VER/" library.properties
+
+      # -----------------------------------------------------------
+      # CRITICAL STEP: Download the specific artifact for this PR
+      # -----------------------------------------------------------
+      - name: Download AI Changelog from PR
+        if: steps.check_skip.outputs.release_created == 'true' && steps.get_pr.outputs.pr_number != ''
+        id: download_log
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: pr-checks.yml   # ⚠️ OPTIONAL: Speed up search by specifying your PR workflow filename
+          pr: ${{ steps.get_pr.outputs.pr_number }}
+          # MATCHES YOUR PR WORKFLOW NAME: changelog-pr-{number}
+          name: changelog-pr-${{ steps.get_pr.outputs.pr_number }}
+          path: /tmp/pr-changelogs/
+          if_no_artifact_found: warn
+
+      - name: Finalize Changelog
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          AI_LOG="/tmp/pr-changelogs/changelog.md"
+          FINAL_LOG="/tmp/changelog.md"
+
+          if [ -f "$AI_LOG" ]; then
+            echo "📝 Found AI Changelog artifact"
+            cat "$AI_LOG" > "$FINAL_LOG"
+          else
+            echo "📝 Artifact missing. Generating fallback log."
+            echo "## What's Changed" > "$FINAL_LOG"
+            echo "" >> "$FINAL_LOG"
+            if [ -n "$LAST_TAG" ]; then
+               git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges >> "$FINAL_LOG"
+            else
+               echo "Initial release" >> "$FINAL_LOG"
+            fi
+          fi
+
+          # Append Footer
+          echo "" >> "$FINAL_LOG"
+          echo "---" >> "$FINAL_LOG"
+          if [ -n "$LAST_TAG" ]; then
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.bump.outputs.new_version }}" >> "$FINAL_LOG"
+          fi
+          
+          cat "$FINAL_LOG"
+
+      - name: Commit & Push
+        if: steps.check_skip.outputs.release_created == 'true'
+        run: |
+          git add library.json library.properties
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
+          
+          TAG="v${{ steps.bump.outputs.new_version }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          
+          git push origin master
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        if: steps.check_skip.outputs.release_created == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          name: Release v${{ steps.bump.outputs.new_version }}
+          body_path: /tmp/changelog.md
+          draft: true
+          prerelease: false
+
+  publish-platformio:
+    name: Publish to PlatformIO
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - run: |
+          sleep 5
+          git fetch --tags
+      - uses: bojit/platformio-publish@v1.0.0
+        with:
+          token: ${{ secrets.PLATFORMIO_TOKEN }}
