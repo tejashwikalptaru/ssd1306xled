@@ -35,7 +35,7 @@ jobs:
           CHANGED_FILES=$(git diff --name-only $BASE_REF...HEAD | head -15)
           
           # 3. Get Actual Diff (Limit 10k chars for Gemini)
-          # Exclude lockfiles
+          # Exclude lockfiles to save space
           RAW_DIFF=$(git diff $BASE_REF...HEAD -- . ':(exclude)package-lock.json' ':(exclude)*.lock')
           DIFF=$(echo "$RAW_DIFF" | head -c 10000)
 
@@ -94,15 +94,16 @@ jobs:
           )
 
           # 2. Build JSON Payload
+          # Gemini structure: { contents: [{ parts: [{ text: "..." }] }] }
           jq -n \
             --arg text "$PROMPT_CONTENT" \
             '{
               contents: [{ parts: [{ text: $text }] }]
             }' > /tmp/payload.json
 
-          # 3. Call Gemini API (FIXED URL)
+          # 3. Call Gemini API (FIXED MODEL NAME)
           echo "Calling Gemini API..."
-          curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$GEMINI_API_KEY" \
+          curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY" \
             -s \
             -H "Content-Type: application/json" \
             -d @/tmp/payload.json \
