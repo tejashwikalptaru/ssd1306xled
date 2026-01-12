@@ -85,7 +85,7 @@ jobs:
         if: steps.check_skip.outputs.release_created == 'true'
         run: |
           JSON_VER=$(jq -r '.version' library.json)
-          PROP_VER=$(grep "^version=" library.properties | cut -d'=' -f2)
+          PROP_VER=$(grep "^version=" library.properties | cut -d'=' -f2 | tr -d '[:space:]')
 
           echo "library.json version: $JSON_VER"
           echo "library.properties version: $PROP_VER"
