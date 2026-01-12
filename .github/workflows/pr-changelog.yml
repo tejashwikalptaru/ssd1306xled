@@ -24,19 +24,21 @@ jobs:
 
       - name: Get PR information
         id: pr_info
+        # SAFE PATTERN: Pass raw data via env to avoid syntax errors
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: origin/${{ github.base_ref }}
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          
           # 1. Get Commit Messages (Limit 15)
-          COMMITS=$(git log origin/${{ github.base_ref }}..HEAD --pretty=format:"- %s" --no-merges | head -15)
+          # We use the environment variable $BASE_REF safely
+          COMMITS=$(git log $BASE_REF..HEAD --pretty=format:"- %s" --no-merges | head -15)
           
           # 2. Get Changed Files (Limit 15)
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | head -15)
+          CHANGED_FILES=$(git diff --name-only $BASE_REF...HEAD | head -15)
           
-          # 3. Get Actual Diff (Crucial for AI accuracy)
-          # We truncate to 3000 chars to avoid token limits/costs
-          # We exclude lockfiles which are huge and useless to AI
-          RAW_DIFF=$(git diff origin/${{ github.base_ref }}...HEAD -- . ':(exclude)package-lock.json' ':(exclude)*.lock')
+          # 3. Get Actual Diff (Truncated)
+          # Exclude lockfiles to save space
+          RAW_DIFF=$(git diff $BASE_REF...HEAD -- . ':(exclude)package-lock.json' ':(exclude)*.lock')
           DIFF=$(echo "$RAW_DIFF" | head -c 3000)
 
           # Handle empty commits case
@@ -44,7 +46,9 @@ jobs:
             COMMITS="No commit messages found."
           fi
 
-          # Output variables safely to GITHUB_OUTPUT
+          # Output variables safely using heredocs
+          # We use "EOF" (quoted) to prevent variable expansion inside the block marker logic itself
+          
           echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
           
           echo "changed_files<<EOF" >> $GITHUB_OUTPUT
@@ -62,22 +66,31 @@ jobs:
       - name: Generate changelog with AI
         id: ai_changelog
         continue-on-error: true
+        # SAFE PATTERN: Map all inputs to env vars here
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PR_TITLE: ${{ steps.pr_info.outputs.pr_title }}
+          PR_FILES: ${{ steps.pr_info.outputs.changed_files }}
+          PR_COMMITS: ${{ steps.pr_info.outputs.commits }}
+          PR_DIFF: ${{ steps.pr_info.outputs.diff }}
         run: |
           # 1. Prepare Prompt Content
-          # We construct the text first so we can inject it into JSON safely later
-          PROMPT_CONTENT="You are a senior technical writer.
+          # We use a distinct EOF marker for the prompt content variable
+          
+          PROMPT_CONTENT=$(cat <<END_PROMPT
+          You are a senior technical writer.
           
           Task: Write a concise changelog based on the provided Code Diff and Commits.
           
           Context:
-          - PR Title: ${{ steps.pr_info.outputs.pr_title }}
-          - Files: ${{ steps.pr_info.outputs.changed_files }}
-          - Commits: ${{ steps.pr_info.outputs.commits }}
+          - PR Title: $PR_TITLE
+          - Files: 
+          $PR_FILES
+          - Commits: 
+          $PR_COMMITS
           
           CODE DIFF (TRUNCATED):
-          ${{ steps.pr_info.outputs.diff }}
+          $PR_DIFF
           
           Strict Rules:
           1. Do NOT hallucinate features that are not in the Code Diff.
@@ -89,10 +102,11 @@ jobs:
              ## Changes
              - [Change 1]
              - [Change 2]
-          "
+          END_PROMPT
+          )
 
-          # 2. Build JSON Payload using jq to handle special characters safely
-          # This prevents the workflow from crashing if commits have quotes
+          # 2. Build JSON Payload using jq
+          # jq handles the escaping of newlines and quotes safely
           jq -n \
             --arg content "$PROMPT_CONTENT" \
             '{
@@ -116,32 +130,33 @@ jobs:
           # 4. Extract content
           CHANGELOG_TEXT=$(cat /tmp/response.json | jq -r '.choices[0].message.content')
 
-          # 5. Validate Output (Fallback if empty or null)
+          # 5. Validate Output
           if [ "$CHANGELOG_TEXT" == "null" ] || [ -z "$CHANGELOG_TEXT" ]; then
             echo "AI generation failed. Response content:"
             cat /tmp/response.json
           
             # Create Fallback File
-            cat > /tmp/changelog.md << 'FALLBACK_EOF'
+            cat > /tmp/changelog.md <<FALLBACK_EOF
           ## Summary
-          ${{ steps.pr_info.outputs.pr_title }}
+          $PR_TITLE
           ## Changes
-          ${{ steps.pr_info.outputs.commits }}
+          $PR_COMMITS
           FALLBACK_EOF
           else
             echo "AI Changelog generated successfully."
             echo "$CHANGELOG_TEXT" > /tmp/changelog.md
           fi
 
-          # 6. Assemble Final Comment File (Header + Content + Footer)
-          cat > /tmp/full_comment.md << 'EOF'
+          # 6. Assemble Final Comment File
+          # Ensure EOF is not indented
+          cat > /tmp/full_comment.md <<EOF
           # 🤖 AI-Generated Changelog
 
           EOF
           
           cat /tmp/changelog.md >> /tmp/full_comment.md
           
-          cat >> /tmp/full_comment.md << 'EOF'
+          cat >> /tmp/full_comment.md <<EOF
 
           ---
           <sub>Generated by OpenAI gpt-4o-mini via GitHub Actions.</sub>
