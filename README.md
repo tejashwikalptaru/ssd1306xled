@@ -56,6 +56,8 @@ void run() {
     - `void ssd1306_string_font6x8(char *s)`: print a given string with font size 6x8
     - `void ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])`: print entire array with font size 8x16
     - `void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[])`: draws the bitmap to the screen
+    - `void ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])`: draws a bitmap at a pixel-level y position (`y_px` is 0–63 in pixels, not pages). The bitmap data is bit-shifted across page boundaries during transmission so no RAM buffer is needed. Note that this overwrites full 8-pixel page strips, so other content sharing those page rows will be erased.
+    - `void ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages)`: clears the area occupied by a pixel-positioned sprite. Call this before redrawing at a new position to avoid leaving ghost pixels behind.
 
 -  Special functions
     - `void ssd1306_tiny_init_vertical(void)`: initializes the screen in vertical addressing mode. Please note that at the moment the vertical addressing mode is *not* compatible with any other library functions than basic data and command transfer!
