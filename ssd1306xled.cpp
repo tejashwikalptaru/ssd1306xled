@@ -331,6 +331,67 @@ void SSD1306Device::ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])
 
 
 
+// Draw bitmap at pixel-level y position (not page-aligned).
+// y_px is in pixels (0-63). The sprite is bit-shifted across page boundaries.
+// Note: overwrites all 8 vertical pixels in each affected page row — other
+// content sharing those page strips will be erased. SSD1306 I2C does not
+// support read-modify-write, so existing page content cannot be preserved.
+void SSD1306Device::ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])
+{
+	uint8_t page_start = y_px >> 3;
+	uint8_t offset = y_px & 0x07;
+	uint8_t total_pages = h_pages + (offset ? 1 : 0);
+
+	for (uint8_t rp = 0; rp < total_pages; rp++)
+	{
+		uint8_t dp = page_start + rp;
+		if (dp > 7) break;
+
+		ssd1306_setpos(x, dp);
+		ssd1306_send_data_start();
+
+		for (uint8_t c = 0; c < w; c++)
+		{
+			uint8_t out = 0;
+
+			if (offset == 0)
+			{
+				out = pgm_read_byte(&bitmap[rp * w + c]);
+			}
+			else
+			{
+				if (rp > 0)
+					out = pgm_read_byte(&bitmap[(rp - 1) * w + c]) >> (8 - offset);
+				if (rp < h_pages)
+					out |= pgm_read_byte(&bitmap[rp * w + c]) << offset;
+			}
+
+			ssd1306_send_byte(out);
+		}
+		ssd1306_send_data_stop();
+	}
+}
+
+// Clear the area that a pixel-positioned sprite occupies.
+// Writes zeros to all pages the sprite would touch at the given y_px.
+void SSD1306Device::ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages)
+{
+	uint8_t page_start = y_px >> 3;
+	uint8_t offset = y_px & 0x07;
+	uint8_t total_pages = h_pages + (offset ? 1 : 0);
+
+	for (uint8_t rp = 0; rp < total_pages; rp++)
+	{
+		uint8_t dp = page_start + rp;
+		if (dp > 7) break;
+		ssd1306_setpos(x, dp);
+		ssd1306_send_data_start();
+		for (uint8_t c = 0; c < w; c++)
+			ssd1306_send_byte(0x00);
+		ssd1306_send_data_stop();
+	}
+}
+
 SSD1306Device SSD1306;
 
 // ----------------------------------------------------------------------------

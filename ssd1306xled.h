@@ -92,6 +92,8 @@ class SSD1306Device
 		void ssd1306_string_font6x8(char *s);
 		void ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[]);
 		void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[]);
+		void ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[]);
+		void ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages);
 
 	private:
 		int I2Ccount;
