@@ -1,0 +1,59 @@
+# Doxyfile for ssd1306xled
+# Minimal config -- only non-default values are listed.
+# Run: doxygen Doxyfile
+
+# Project metadata
+PROJECT_NAME           = "ssd1306xled"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "SSD1306/SSD1315/SSH1106 OLED driver for ATtiny85"
+PROJECT_LOGO           =
+
+# Output
+OUTPUT_DIRECTORY       = docs
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+
+# Input files
+INPUT                  = README.md \
+                         ssd1306xled.h \
+                         ssd1306xled.cpp \
+                         docs/pages
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.cpp *.md
+USE_MDFILE_AS_MAINPAGE = README.md
+EXAMPLE_PATH           = examples
+IMAGE_PATH             = images
+
+# Extraction
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+
+# Preprocessing -- define opt-in flags so conditional sections are documented
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = DOXYGEN \
+                         SSD1306_CLIPPING \
+                         SSD1306_COMPOSITING \
+                         SSD1306_FAST_FILLSCREEN
+
+# C++ / Arduino
+OPTIMIZE_OUTPUT_FOR_C  = YES
+
+# HTML appearance
+HTML_EXTRA_STYLESHEET  = docs/custom.css
+SEARCHENGINE           = YES
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = YES
+HTML_COLORSTYLE        = LIGHT
+DISABLE_INDEX          = NO
+
+# Warnings
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+# Misc
+QUIET                  = YES
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES

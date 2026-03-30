@@ -85,16 +85,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump version
+      - name: Determine version
         if: steps.check_skip.outputs.release_created == 'true'
         id: bump
         run: |
           CURRENT_VERSION=$(jq -r '.version' library.json)
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
-          
-          echo "Bumping: $CURRENT_VERSION -> $NEW_VERSION"
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          LAST_VERSION="${LAST_TAG#v}"
+
+          if [ "$CURRENT_VERSION" != "$LAST_VERSION" ]; then
+            echo "Version already bumped in PR: $CURRENT_VERSION (last tag: $LAST_TAG)"
+            NEW_VERSION="$CURRENT_VERSION"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+            echo "Auto-bumping: $CURRENT_VERSION -> $NEW_VERSION"
+          fi
+
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Update Files
@@ -152,13 +160,15 @@ jobs:
 
       - name: Commit & Push
         if: steps.check_skip.outputs.release_created == 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
         run: |
           git add library.json library.properties
-          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
-          
-          TAG="v${{ steps.bump.outputs.new_version }}"
+          git diff --cached --quiet && echo "No version file changes to commit" || git commit -m "chore: bump version to $NEW_VERSION"
+
+          TAG="v$NEW_VERSION"
           git tag -a "$TAG" -m "Release $TAG"
-          
+
           git push origin master
           git push origin "$TAG"
 
