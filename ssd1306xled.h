@@ -141,7 +141,7 @@ const unsigned char USISR_1bit = 1<<USISIF | 1<<USIOIF | 1<<USIPF | 1<<USIDC | 0
 #define SSD1306_NO_FONT_6X8
 
 /** @def SSD1306_NO_FONT_8X16
- * Exclude the 8x16 font data and ssd1306_char_f8x16(). Saves ~1570 bytes. */
+ * Exclude the 8x16 font data and ssd1306_string_f8x16(). Saves ~1570 bytes. */
 #define SSD1306_NO_FONT_8X16
 
 /** @def SSD1306_NO_DRAW_BMP
@@ -300,7 +300,7 @@ class SSD1306Device
 		 *
 		 * @param s Pointer to a null-terminated string.
 		 */
-		void ssd1306_string_font6x8(char *s);
+		void ssd1306_string_font6x8(const char *s);
 #endif
 
 #ifndef SSD1306_NO_FONT_8X16
@@ -313,9 +313,9 @@ class SSD1306Device
 		 *
 		 * @param x Starting column (0-127).
 		 * @param y Starting page (0-7). The character occupies pages y and y+1.
-		 * @param ch Null-terminated string to print.
+		 * @param s Null-terminated string to print.
 		 */
-		void ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[]);
+		void ssd1306_string_f8x16(uint8_t x, uint8_t y, const char s[]);
 #endif
 
 #ifndef SSD1306_NO_DRAW_BMP

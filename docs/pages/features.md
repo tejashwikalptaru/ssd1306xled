@@ -87,7 +87,7 @@ exclusion regardless of toolchain settings.
 | Flag                   | What it removes                                         | Flash saved |
 |------------------------|---------------------------------------------------------|-------------|
 | `SSD1306_NO_FONT_6X8` | 6x8 font data + `ssd1306_char_font6x8` + `ssd1306_string_font6x8` | ~582 bytes  |
-| `SSD1306_NO_FONT_8X16` | 8x16 font data + `ssd1306_char_f8x16`                  | ~1570 bytes |
+| `SSD1306_NO_FONT_8X16` | 8x16 font data + `ssd1306_string_f8x16`                  | ~1570 bytes |
 | `SSD1306_NO_DRAW_BMP`  | Page-aligned `ssd1306_draw_bmp` (use `ssd1306_draw_bmp_px` instead) | ~40 bytes   |
 
 ### SSD1306_QUICK_BEGIN

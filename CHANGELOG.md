@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Sprites dropped down when drawn at negative X coordinates (issue #20). Added X bounds checking to `ssd1306_draw_bmp_px` and `ssd1306_clear_area_px`.
-- Uninitialized variable in `ssd1306_char_f8x16` that could produce garbled text.
+- Uninitialized variable in `ssd1306_string_f8x16` that could produce garbled text.
 
 ### Changed
+- Renamed `ssd1306_char_f8x16` to `ssd1306_string_f8x16` -- the function takes a string, not a single character. **Breaking change.**
+- Added `const` qualifier to `ssd1306_string_font6x8` parameter (`const char *s`).
+- Removed dead code in `ssd1306_draw_bmp` (unused page calculation that was immediately overwritten).
 - Removed unused I2C read path from `I2CStart` (~10 bytes flash, 2 bytes RAM saved).
 - Merged duplicate I2C start functions into a shared internal helper (~12 bytes saved).
 - Shared init helper removes duplicated init loops across init functions (~20 bytes saved).

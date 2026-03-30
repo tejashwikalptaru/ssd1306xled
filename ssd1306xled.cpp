@@ -320,7 +320,7 @@ void SSD1306Device::ssd1306_char_font6x8(char ch) {
 	ssd1306_send_data_stop();
 }
 
-void SSD1306Device::ssd1306_string_font6x8(char *s) {
+void SSD1306Device::ssd1306_string_font6x8(const char *s) {
 	ssd1306_send_data_start();
 	while (*s) {
 		uint8_t c = *s++ - 32;
@@ -339,8 +339,6 @@ void SSD1306Device::ssd1306_string_font6x8(char *s) {
 void SSD1306Device::ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[]){
 	uint16_t j = 0;
 	uint8_t y, x;
-	if (y1 % 8 == 0) y = y1 / 8;
-	else y = y1 / 8 + 1;
 	for (y = y0; y < y1; y++)
 	{
 		ssd1306_setpos(x0,y);
@@ -357,12 +355,12 @@ void SSD1306Device::ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t
 
 #ifndef SSD1306_NO_FONT_8X16
 
-void SSD1306Device::ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])
+void SSD1306Device::ssd1306_string_f8x16(uint8_t x, uint8_t y, const char s[])
 {
 	uint8_t c, j = 0, i = 0;
-	while (ch[j] != '\0')
+	while (s[j] != '\0')
 	{
-		c = ch[j] - 32;
+		c = s[j] - 32;
 		if (x > 120)
 		{
 			x = 0;
