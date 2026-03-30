@@ -366,10 +366,10 @@ void SSD1306Device::ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t
 
 void SSD1306Device::ssd1306_string_f8x16(uint8_t x, uint8_t y, const char s[])
 {
-	uint8_t c, j = 0, i = 0;
-	while (s[j] != '\0')
+	uint8_t c, i = 0;
+	while (*s)
 	{
-		c = s[j] - 32;
+		c = *s++ - 32;
 		if (x > 120)
 		{
 			x = 0;
@@ -390,7 +390,6 @@ void SSD1306Device::ssd1306_string_f8x16(uint8_t x, uint8_t y, const char s[])
 		}
 		ssd1306_send_data_stop();
 		x += 8;
-		j++;
 	}
 }
 
