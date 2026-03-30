@@ -283,10 +283,7 @@ void SSD1306Device::ssd1306_send_data_stop() {
 void SSD1306Device::ssd1306_fillscreen(uint8_t fill) {
 	ssd1306_setpos(0, 0);
 	ssd1306_send_data_start();
-	for (uint16_t i = 0; i < 128 * 8 / 4; i++) {
-		ssd1306_send_byte(fill);
-		ssd1306_send_byte(fill);
-		ssd1306_send_byte(fill);
+	for (uint16_t i = 0; i < 128 * 8; i++) {
 		ssd1306_send_byte(fill);
 	}
 	ssd1306_send_data_stop();

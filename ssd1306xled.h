@@ -242,8 +242,7 @@ class SSD1306Device
 		 * @brief Fill the entire screen with a byte pattern.
 		 *
 		 * Writes 1024 bytes (128 columns x 8 pages). Pass 0x00 to clear the
-		 * screen, 0xFF to turn every pixel on, or any other pattern. Uses a
-		 * 4x-unrolled loop for speed.
+		 * screen, 0xFF to turn every pixel on, or any other pattern.
 		 *
 		 * @param fill The byte pattern to repeat across the display.
 		 */

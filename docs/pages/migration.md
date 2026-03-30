@@ -45,8 +45,8 @@ exclude them from compilation. These flags only work with PlatformIO's
 
 They do **not** work as `#define` in Arduino IDE sketches. Arduino compiles
 library `.cpp` files separately and does not pass sketch defines to them.
-In Arduino IDE, the linker strips unused functions automatically, but font
-data arrays remain in the binary.
+In Arduino IDE the linker strips unused functions and data automatically,
+so you generally do not need these flags.
 
 See @ref features for the full list of build flags.
 
@@ -67,8 +67,8 @@ See @ref features for details, code examples, and measured flash costs.
 ## Flash savings {#flash_savings}
 
 The internals were refactored to share code between init functions and I2C
-operations. The `ssd1306_fillscreen` loop is now 4x-unrolled by default.
-Compiled binary size should drop compared to v0.0.4. Nothing to do on your end.
+operations. Compiled binary size should drop compared to v0.0.4. Nothing to
+do on your end.
 
 ## Version number {#version_number}
 

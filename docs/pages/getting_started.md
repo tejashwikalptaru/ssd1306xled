@@ -127,12 +127,12 @@ customization section above.
 ## Saving flash {#saving_flash}
 
 The ATtiny85 has 8 KB of flash. This library was built with that constraint in
-mind. The AVR linker automatically strips any function your sketch does not
-call, so unused features cost zero flash. You don't need to configure anything
-for this to work.
+mind. The AVR linker automatically strips functions and data your sketch does
+not use, so unused features cost zero flash. You don't need to configure
+anything for this to work.
 
-If you use PlatformIO, you can go further by excluding font data arrays
-entirely with `build_flags` in `platformio.ini`:
+If you use PlatformIO, you can use `build_flags` in `platformio.ini` to
+explicitly exclude features at compile time:
 
 ```ini
 build_flags =

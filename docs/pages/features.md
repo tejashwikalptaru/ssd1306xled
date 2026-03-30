@@ -67,8 +67,9 @@ PlatformIO passes `-D` flags to all compilation units, including library code.
 
 **These flags do not work in Arduino IDE.** The Arduino IDE compiles library
 `.cpp` files separately and does not pass defines from your sketch to library
-compilation. In Arduino IDE, the linker already strips unused functions
-automatically, so the main thing you miss is exclusion of font data arrays.
+compilation. In Arduino IDE the linker strips unused functions and data
+automatically, so you generally do not need these flags. They exist for
+explicit control in PlatformIO builds.
 
 ### PlatformIO usage {#platformio_usage}
 
