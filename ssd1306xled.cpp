@@ -5,7 +5,7 @@
  * @author: Neven Boyanov
  *
  * Source code available at: https://bitbucket.org/tinusaur/ssd1306xled
- * 
+ *
  * Modified by Tejashwi Kalp Taru, with the help of TinyI2C (https://github.com/technoblogy/tiny-i2c/)
  * Modified code available at: https://github.com/tejashwikalptaru/ssd1306xled
  */
@@ -19,8 +19,14 @@
 #include <avr/pgmspace.h>
 
 #include "ssd1306xled.h"
+
+#ifndef SSD1306_NO_FONT_6X8
 #include "font6x8.h"
+#endif
+
+#ifndef SSD1306_NO_FONT_8X16
 #include "font8x16.h"
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -67,8 +73,6 @@ const uint8_t ssd1306_init_sequence_vertical_addressing_mode [] PROGMEM = {	// I
 	0xAF,			// Set Display ON/OFF - AE=OFF, AF=ON
 };
 
-// Program:    5248 bytes
-
 SSD1306Device::SSD1306Device(void){}
 
 void SSD1306Device::I2CInit() {
@@ -87,9 +91,8 @@ void SSD1306Device::I2CInit() {
 			0x0<<USICNT0;                       // and reset counter.
 }
 
-bool SSD1306Device::I2CStart(uint8_t address, int readcount) {
-	if (readcount != 0) { I2Ccount = readcount; readcount = 1; }
-	uint8_t addressRW = address<<1 | readcount;
+bool SSD1306Device::I2CStart(uint8_t address) {
+	uint8_t addressRW = address << 1;
 
 	/* Release SCL to ensure that (repeated) Start can be performed */
 	PORT_USI_CL |= 1<<PIN_USI_SCL;              // Release SCL.
@@ -155,7 +158,7 @@ void SSD1306Device::I2CStop (void) {
 void SSD1306Device::begin() {
 	I2CInit();
 #ifndef TINY4KOLED_QUICK_BEGIN
-	while (!I2CStart(SSD1306_SA, 0)) {
+	while (!I2CStart(SSD1306_SA)) {
 		delay(10);
 	}
 	I2CStop();
@@ -175,49 +178,43 @@ bool SSD1306Device::I2CWrite(uint8_t data)  {
   return true;
 }
 
-void SSD1306Device::ssd1306_init(void)
-{
+// --- Shared internal helpers ---
+
+void SSD1306Device::_ssd1306_start(uint8_t mode) {
+	I2CStop();
+	I2CStart(SSD1306_SA);
+	I2CWrite(mode);
+}
+
+void SSD1306Device::_ssd1306_init_from(const uint8_t *seq, uint8_t len) {
 	begin();
 	ssd1306_send_command_start();
-	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence); i++) {
-		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence[i]));
+	for (uint8_t i = 0; i < len; i++) {
+		ssd1306_send_byte(pgm_read_byte(&seq[i]));
 	}
 	ssd1306_send_command_stop();
+}
+
+// --- Public API ---
+
+void SSD1306Device::ssd1306_init(void)
+{
+	_ssd1306_init_from(ssd1306_init_sequence, sizeof(ssd1306_init_sequence));
 	ssd1306_fillscreen(0);
 }
 
-// A shorter init saves 52 flash bytes (if zeroed screen is not required)
-// The code of 'ssd1306_init()' is replicated to allow the linker to drop the unused method during linkage.
 void SSD1306Device::ssd1306_tiny_init(void)
 {
-	begin();
-	ssd1306_send_command_start();
-	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence); i++) {
-		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence[i]));
-	}
-	ssd1306_send_command_stop();
-	// save 52 bytes :)
-	//ssd1306_fillscreen(0);
+	_ssd1306_init_from(ssd1306_init_sequence, sizeof(ssd1306_init_sequence));
 }
 
-// An alternate version of 'ssd1306_tiny_init()' which enables the vertical addressing mode.
-// The code of 'ssd1306_tiny_init()' is replicated to allow the linker to drop the unused method during linkage.
 void SSD1306Device::ssd1306_tiny_init_vertical(void)
 {
-	begin();
-	ssd1306_send_command_start();
-	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence_vertical_addressing_mode); i++) {
-		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence_vertical_addressing_mode[i]));
-	}
-	ssd1306_send_command_stop();
-	// save 52 bytes :)
-	//ssd1306_fillscreen(0);
+	_ssd1306_init_from(ssd1306_init_sequence_vertical_addressing_mode, sizeof(ssd1306_init_sequence_vertical_addressing_mode));
 }
 
 void SSD1306Device::ssd1306_send_command_start(void) {
-	I2CStop();
-	I2CStart(SSD1306_SA, 0);
-	I2CWrite(SSD1306_COMMAND);
+	_ssd1306_start(SSD1306_COMMAND);
 }
 
 void SSD1306Device::ssd1306_send_command_stop() {
@@ -235,9 +232,7 @@ void SSD1306Device::ssd1306_send_byte(uint8_t byte) {
 }
 
 void SSD1306Device::ssd1306_send_data_start(void) {
-	I2CStop();
-	I2CStart(SSD1306_SA, 0);
-	I2CWrite(SSD1306_DATA);
+	_ssd1306_start(SSD1306_DATA);
 }
 
 void SSD1306Device::ssd1306_send_data_stop() {
@@ -247,12 +242,18 @@ void SSD1306Device::ssd1306_send_data_stop() {
 void SSD1306Device::ssd1306_fillscreen(uint8_t fill) {
 	ssd1306_setpos(0, 0);
 	ssd1306_send_data_start();	// Initiate transmission of data
+#ifdef SSD1306_FAST_FILLSCREEN
 	for (uint16_t i = 0; i < 128 * 8 / 4; i++) {
 		ssd1306_send_byte(fill);
 		ssd1306_send_byte(fill);
 		ssd1306_send_byte(fill);
 		ssd1306_send_byte(fill);
 	}
+#else
+	for (uint16_t i = 0; i < 1024; i++) {
+		ssd1306_send_byte(fill);
+	}
+#endif
 	ssd1306_send_data_stop();	// Finish transmission
 }
 
@@ -265,8 +266,10 @@ void SSD1306Device::ssd1306_setpos(uint8_t x, uint8_t y)
 	ssd1306_send_command_stop();
 }
 
+#ifndef SSD1306_NO_FONT_6X8
+
 void SSD1306Device::ssd1306_char_font6x8(char ch) {
-	uint8_t i; 
+	uint8_t i;
 	uint8_t c = ch - 32;
 	ssd1306_send_data_start();
 	for (i= 0; i < 6; i++)
@@ -277,10 +280,20 @@ void SSD1306Device::ssd1306_char_font6x8(char ch) {
 }
 
 void SSD1306Device::ssd1306_string_font6x8(char *s) {
+	ssd1306_send_data_start();
 	while (*s) {
-		ssd1306_char_font6x8(*s++);
+		uint8_t c = *s++ - 32;
+		for (uint8_t i = 0; i < 6; i++)
+		{
+			ssd1306_send_byte(pgm_read_byte(&ssd1306xled_font6x8[c * 6 + i]));
+		}
 	}
+	ssd1306_send_data_stop();
 }
+
+#endif // SSD1306_NO_FONT_6X8
+
+#ifndef SSD1306_NO_DRAW_BMP
 
 void SSD1306Device::ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[]){
 	uint16_t j = 0;
@@ -299,9 +312,13 @@ void SSD1306Device::ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t
 	}
 }
 
+#endif // SSD1306_NO_DRAW_BMP
+
+#ifndef SSD1306_NO_FONT_8X16
+
 void SSD1306Device::ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])
 {
-	uint8_t c, j, i = 0;
+	uint8_t c, j = 0, i = 0;
 	while (ch[j] != '\0')
 	{
 		c = ch[j] - 32;
@@ -329,6 +346,7 @@ void SSD1306Device::ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])
 	}
 }
 
+#endif // SSD1306_NO_FONT_8X16
 
 
 // Draw bitmap at pixel-level y position (not page-aligned).
@@ -338,6 +356,11 @@ void SSD1306Device::ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])
 // support read-modify-write, so existing page content cannot be preserved.
 void SSD1306Device::ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])
 {
+	if (x >= 128) return;
+	uint8_t draw_w = w;
+	uint8_t max_w = 128 - x;
+	if (draw_w > max_w) draw_w = max_w;
+
 	uint8_t page_start = y_px >> 3;
 	uint8_t offset = y_px & 0x07;
 	uint8_t total_pages = h_pages + (offset ? 1 : 0);
@@ -350,7 +373,7 @@ void SSD1306Device::ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint
 		ssd1306_setpos(x, dp);
 		ssd1306_send_data_start();
 
-		for (uint8_t c = 0; c < w; c++)
+		for (uint8_t c = 0; c < draw_w; c++)
 		{
 			uint8_t out = 0;
 
@@ -376,6 +399,10 @@ void SSD1306Device::ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint
 // Writes zeros to all pages the sprite would touch at the given y_px.
 void SSD1306Device::ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages)
 {
+	if (x >= 128) return;
+	uint8_t max_w = 128 - x;
+	if (w > max_w) w = max_w;
+
 	uint8_t page_start = y_px >> 3;
 	uint8_t offset = y_px & 0x07;
 	uint8_t total_pages = h_pages + (offset ? 1 : 0);
@@ -391,6 +418,159 @@ void SSD1306Device::ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, ui
 		ssd1306_send_data_stop();
 	}
 }
+
+// --- Optional: Signed X clipping support ---
+#ifdef SSD1306_CLIPPING
+
+void SSD1306Device::ssd1306_draw_bmp_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])
+{
+	uint8_t col_offset = 0;
+
+	// Fully off-screen
+	if (x >= 128 || x + (int16_t)w <= 0) return;
+
+	// Clip left edge
+	if (x < 0) {
+		col_offset = (uint8_t)(-x);
+		w -= col_offset;
+		x = 0;
+	}
+
+	// orig_w is the true bitmap row stride (before right-clipping)
+	uint8_t orig_w = w + col_offset;
+
+	// Clip right edge
+	if (x + w > 128) w = 128 - (uint8_t)x;
+
+	uint8_t ux = (uint8_t)x;
+	uint8_t page_start = y_px >> 3;
+	uint8_t offset = y_px & 0x07;
+	uint8_t total_pages = h_pages + (offset ? 1 : 0);
+
+	for (uint8_t rp = 0; rp < total_pages; rp++)
+	{
+		uint8_t dp = page_start + rp;
+		if (dp > 7) break;
+
+		ssd1306_setpos(ux, dp);
+		ssd1306_send_data_start();
+
+		for (uint8_t c = 0; c < w; c++)
+		{
+			uint8_t sc = c + col_offset;
+			uint8_t out = 0;
+
+			if (offset == 0)
+			{
+				out = pgm_read_byte(&bitmap[rp * orig_w + sc]);
+			}
+			else
+			{
+				if (rp > 0)
+					out = pgm_read_byte(&bitmap[(rp - 1) * orig_w + sc]) >> (8 - offset);
+				if (rp < h_pages)
+					out |= pgm_read_byte(&bitmap[rp * orig_w + sc]) << offset;
+			}
+
+			ssd1306_send_byte(out);
+		}
+		ssd1306_send_data_stop();
+	}
+}
+
+void SSD1306Device::ssd1306_clear_area_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages)
+{
+	// Fully off-screen
+	if (x >= 128 || x + (int16_t)w <= 0) return;
+
+	// Clip left edge
+	if (x < 0) {
+		uint8_t clip = (uint8_t)(-x);
+		w -= clip;
+		x = 0;
+	}
+
+	// Clip right edge
+	if (x + w > 128) w = 128 - (uint8_t)x;
+
+	uint8_t ux = (uint8_t)x;
+	uint8_t page_start = y_px >> 3;
+	uint8_t offset = y_px & 0x07;
+	uint8_t total_pages = h_pages + (offset ? 1 : 0);
+
+	for (uint8_t rp = 0; rp < total_pages; rp++)
+	{
+		uint8_t dp = page_start + rp;
+		if (dp > 7) break;
+		ssd1306_setpos(ux, dp);
+		ssd1306_send_data_start();
+		for (uint8_t c = 0; c < w; c++)
+			ssd1306_send_byte(0x00);
+		ssd1306_send_data_stop();
+	}
+}
+
+#endif // SSD1306_CLIPPING
+
+
+// --- Optional: Page compositing support ---
+#ifdef SSD1306_COMPOSITING
+
+void SSD1306Device::ssd1306_compose_bmp_px(uint8_t *buf, uint8_t buf_x, uint8_t buf_w,
+	int16_t sprite_x, uint8_t sprite_y_px,
+	uint8_t sprite_w, uint8_t sprite_h_pages,
+	const uint8_t bitmap[], uint8_t target_page)
+{
+	uint8_t page_start = sprite_y_px >> 3;
+	uint8_t offset = sprite_y_px & 0x07;
+	uint8_t total_pages = sprite_h_pages + (offset ? 1 : 0);
+
+	// Check if this sprite touches the target page at all
+	if (target_page < page_start || target_page >= page_start + total_pages) return;
+
+	uint8_t rp = target_page - page_start;
+
+	for (uint8_t c = 0; c < sprite_w; c++)
+	{
+		// Map sprite column to buffer position
+		int16_t disp_col = sprite_x + c;
+		if (disp_col < (int16_t)buf_x || disp_col >= (int16_t)(buf_x + buf_w)) continue;
+		if (disp_col < 0 || disp_col >= 128) continue;
+		uint8_t buf_idx = (uint8_t)disp_col - buf_x;
+
+		uint8_t out = 0;
+
+		if (offset == 0)
+		{
+			out = pgm_read_byte(&bitmap[rp * sprite_w + c]);
+		}
+		else
+		{
+			if (rp > 0)
+				out = pgm_read_byte(&bitmap[(rp - 1) * sprite_w + c]) >> (8 - offset);
+			if (rp < sprite_h_pages)
+				out |= pgm_read_byte(&bitmap[rp * sprite_w + c]) << offset;
+		}
+
+		buf[buf_idx] |= out;
+	}
+}
+
+void SSD1306Device::ssd1306_send_buf(uint8_t x, uint8_t page, const uint8_t *buf, uint8_t w)
+{
+	if (x >= 128) return;
+	uint8_t max_w = 128 - x;
+	if (w > max_w) w = max_w;
+
+	ssd1306_setpos(x, page);
+	ssd1306_send_data_start();
+	for (uint8_t c = 0; c < w; c++)
+		ssd1306_send_byte(buf[c]);
+	ssd1306_send_data_stop();
+}
+
+#endif // SSD1306_COMPOSITING
+
 
 SSD1306Device SSD1306;
 

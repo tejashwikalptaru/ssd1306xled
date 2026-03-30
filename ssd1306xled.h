@@ -4,7 +4,7 @@
  * @author: Neven Boyanov
  *
  * Source code available at: https://bitbucket.org/tinusaur/ssd1306xled
- * 
+ *
  * Modified by Tejashwi Kalp Taru, with the help of TinyI2C (https://github.com/technoblogy/tiny-i2c/)
  * Modified code available at: https://github.com/tejashwikalptaru/ssd1306xled
  *
@@ -88,21 +88,47 @@ class SSD1306Device
 
 		void ssd1306_setpos(uint8_t x, uint8_t y);
 		void ssd1306_fillscreen(uint8_t fill);
+
+#ifndef SSD1306_NO_FONT_6X8
 		void ssd1306_char_font6x8(char ch);
 		void ssd1306_string_font6x8(char *s);
+#endif
+
+#ifndef SSD1306_NO_FONT_8X16
 		void ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[]);
+#endif
+
+#ifndef SSD1306_NO_DRAW_BMP
 		void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[]);
+#endif
+
 		void ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[]);
 		void ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages);
 
+#ifdef SSD1306_CLIPPING
+		void ssd1306_draw_bmp_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[]);
+		void ssd1306_clear_area_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages);
+#endif
+
+#ifdef SSD1306_COMPOSITING
+		// Compose a sprite's contribution into buf for a specific page (OR operation).
+		// buf must be zeroed by the caller before compositing each frame.
+		void ssd1306_compose_bmp_px(uint8_t *buf, uint8_t buf_x, uint8_t buf_w,
+			int16_t sprite_x, uint8_t sprite_y_px,
+			uint8_t sprite_w, uint8_t sprite_h_pages,
+			const uint8_t bitmap[], uint8_t target_page);
+		void ssd1306_send_buf(uint8_t x, uint8_t page, const uint8_t *buf, uint8_t w);
+#endif
+
 	private:
-		int I2Ccount;
 		void I2CInit();
-		bool I2CStart(uint8_t address, int readcount);
+		bool I2CStart(uint8_t address);
 		uint8_t I2CTransfer (uint8_t data);
 		void I2CStop (void);
 		bool I2CWrite(uint8_t data);
 		void begin();
+		void _ssd1306_start(uint8_t mode);
+		void _ssd1306_init_from(const uint8_t *seq, uint8_t len);
 };
 
 
