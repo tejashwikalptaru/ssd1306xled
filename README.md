@@ -19,9 +19,50 @@ Originally written by Neven Boyanov and the Tinusaur team.
 
 ## Installation
 
-- **PlatformIO:** `pio lib install "ssd1306xled"` or [visit the library page](https://platformio.org/lib/show/7105/ssd1306xled/installation)
-- **Arduino IDE:** Tools > Manage Libraries, search for `ssd1306xled`
-- **Manual:** Download from the [releases page](https://github.com/tejashwikalptaru/ssd1306xled/releases)
+### PlatformIO
+
+```bash
+pio lib install "ssd1306xled"
+```
+
+Or add it to your `platformio.ini`:
+
+```ini
+lib_deps = ssd1306xled
+```
+
+You can also [browse the library on the PlatformIO registry](https://platformio.org/lib/show/7105/ssd1306xled/installation).
+
+### Arduino IDE
+
+Open **Tools > Manage Libraries**, search for `ssd1306xled`, and click Install.
+
+### Manual
+
+Download the latest `.zip` from the [releases page](https://github.com/tejashwikalptaru/ssd1306xled/releases).
+
+**For Arduino IDE:**
+
+Open **Sketch > Include Library > Add .ZIP Library** and select the downloaded file. Arduino will copy it into your libraries folder automatically.
+
+If you prefer doing it by hand, unzip and move the folder to your Arduino libraries directory (usually `~/Arduino/libraries/` on Linux/macOS or `Documents\Arduino\libraries\` on Windows). Restart the IDE afterward.
+
+**For PlatformIO:**
+
+Unzip the release into your project's `lib/` directory so the layout looks like this:
+
+```
+your_project/
+  lib/
+    ssd1306xled/
+      ssd1306xled.h
+      ssd1306xled.cpp
+      font6x8.h
+      font8x16.h
+      library.json
+```
+
+PlatformIO picks up anything inside `lib/` automatically -- no extra configuration needed.
 
 ## Quick start
 

@@ -57,9 +57,39 @@ Open **Tools > Manage Libraries**, search for `ssd1306xled`, and click Install.
 
 ### Manual {#install_manual}
 
-Download the latest release from
-[GitHub](https://github.com/tejashwikalptaru/ssd1306xled/releases), unzip it,
-and place the folder in your Arduino libraries directory.
+Download the latest `.zip` from the
+[releases page](https://github.com/tejashwikalptaru/ssd1306xled/releases).
+
+#### Arduino IDE
+
+Open **Sketch > Include Library > Add .ZIP Library** and select the downloaded
+file. The IDE copies it into your libraries folder for you.
+
+To do it by hand instead, unzip the archive and move the resulting folder to
+your Arduino libraries directory:
+
+- Linux / macOS: `~/Arduino/libraries/`
+- Windows: `Documents\Arduino\libraries\`
+
+Restart the IDE after adding the folder.
+
+#### PlatformIO
+
+Unzip the release into your project's `lib/` directory:
+
+```
+your_project/
+  lib/
+    ssd1306xled/
+      ssd1306xled.h
+      ssd1306xled.cpp
+      font6x8.h
+      font8x16.h
+      library.json
+```
+
+PlatformIO picks up anything inside `lib/` automatically -- no extra
+configuration needed.
 
 ## First program {#first_program}
 

@@ -373,7 +373,7 @@ void SSD1306Device::ssd1306_string_f8x16(uint8_t x, uint8_t y, const char s[])
 		if (x > 120)
 		{
 			x = 0;
-			y++;
+			y += 2;
 		}
 		ssd1306_setpos(x, y);
 		ssd1306_send_data_start();
