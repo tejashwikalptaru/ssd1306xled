@@ -1,11 +1,11 @@
 # Examples walkthrough {#examples}
 
-## OLED_demo.ino
+## OLED_demo.ino {#oled_demo}
 
 The demo sketch in `examples/OLED_demo/` exercises the main library features.
 Here is what each section does.
 
-### Setup
+### Setup {#demo_setup}
 
 ```c
 void setup() {
@@ -17,7 +17,7 @@ void setup() {
 Waits 40 ms for the display to power up, then sends the initialization
 sequence and clears the screen. After this, the display is ready.
 
-### Fill patterns
+### Fill patterns {#demo_fill}
 
 ```c
 for (uint8_t i = 0; i < 8; i++) {
@@ -27,24 +27,27 @@ for (uint8_t i = 0; i < 8; i++) {
 SSD1306.ssd1306_fillscreen(0);
 ```
 
-Fills the screen with byte patterns 0 through 7. Since each byte controls 8
-vertical pixels, pattern 0x01 lights the top pixel in every column, 0x02 lights
-the second pixel, and so on. The result is a quick animation of horizontal
-lines moving down the screen. Then the screen is cleared.
+Each byte in the display controls 8 vertical pixels (bit 0 = top, bit 7 =
+bottom). Filling with 0x00 leaves the screen blank. Filling with 0x01 (bit 0
+set) lights the top pixel of every 8-pixel page strip, producing a thin
+horizontal line every 8 rows. 0x02 lights the second pixel, 0x03 lights the
+top two, and so on. The loop runs through patterns 0-7, so you see a single
+line stepping down one pixel at a time within each page. Then the screen is
+cleared.
 
-### Text rendering
+### Text rendering {#demo_text}
 
 ```c
 SSD1306.ssd1306_setpos(0, 3);
-SSD1306.ssd1306_string_font6x8("ssd1306xled");
+SSD1306.ssd1306_string_font6x8("SSD1306XLED");
 _delay_ms(2000);
 ```
 
 Moves the cursor to column 0, page 3 (roughly the middle of the screen) and
-prints "ssd1306xled" using the 6x8 font. Each character is 6 pixels wide, so
-11 characters take up 66 of the 128 columns.
+prints "SSD1306XLED" using the 6x8 font. Each character is 6 pixels wide, so
+11 characters take 66 of the 128 columns.
 
-### Bitmap display
+### Bitmap display {#demo_bitmap}
 
 ```c
 SSD1306.ssd1306_fillscreen(0);
@@ -59,7 +62,7 @@ coordinates (0, 0, 128, 8) mean: start at the top-left corner and cover all
 
 A second bitmap from `image_two.h` is drawn the same way.
 
-### Compositing demo
+### Compositing demo {#demo_compositing}
 
 This section of the demo shows how to use the compositing functions:
 
@@ -98,7 +101,7 @@ SSD1306.ssd1306_send_buf(20, 3, buf, 8);
 Both sprites' contributions to page 3 are OR'd into the buffer, then the
 buffer is sent to the display in a single write. Both sprites appear correctly.
 
-## Creating your own bitmaps
+## Creating your own bitmaps {#creating_bitmaps}
 
 Bitmap data for the SSD1306 is organized page-by-page, left to right, top to
 bottom. Each byte represents 8 vertical pixels in one column (LSB = top).

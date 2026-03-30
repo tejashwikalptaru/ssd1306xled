@@ -44,7 +44,7 @@ const uint8_t ssd1306_init_sequence [] PROGMEM = {
 	0xA0 | 0x01,	// Segment remap: column 127 = SEG0
 	0xC8,			// COM scan: bottom to top
 	0xDA, 0x12,		// COM pins: 128x64 config
-	0x81, 0x3F,		// Contrast: max
+	0x81, 0x3F,		// Contrast: default (range 0x00-0xFF)
 	0xD9, 0x22,		// Pre-charge period
 	0xDB, 0x20,		// VCOMH deselect: 0.77 x VCC
 	0xA4,			// Display from RAM (not all-on test mode)

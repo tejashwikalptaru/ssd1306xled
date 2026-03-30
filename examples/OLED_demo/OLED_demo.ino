@@ -41,22 +41,14 @@ void setup() {
 }
 
 void loop() {
-  uint8_t p = 0xff;
-  for (uint8_t i = 0; i < 4; i++){
-    p = (p >> i);
-    SSD1306.ssd1306_fillscreen(~p);
-    _delay_ms(100);
+  for (uint8_t i = 0; i < 8; i++) {
+    SSD1306.ssd1306_fillscreen(i);
+    _delay_ms(200);
   }
   SSD1306.ssd1306_fillscreen(0);
-  SSD1306.ssd1306_setpos(0, 1);
-  SSD1306.ssd1306_string_font6x8("That's the");
-  SSD1306.ssd1306_setpos(43, 3);
-  SSD1306.ssd1306_string_font6x8("project");
   SSD1306.ssd1306_setpos(0, 3);
-  SSD1306.ssd1306_string_font6x8("The platform that gives you everything you need for your first microcontroller project");
-  SSD1306.ssd1306_setpos(12, 7);
-  SSD1306.ssd1306_string_font6x8("http://tinusaur.org");
-  _delay_ms(6000);
+  SSD1306.ssd1306_string_font6x8("SSD1306XLED");
+  _delay_ms(2000);
   SSD1306.ssd1306_fillscreen(0);
   SSD1306.ssd1306_draw_bmp(0, 0, 128, 8, logo);
   _delay_ms(4000);

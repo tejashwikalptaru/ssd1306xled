@@ -4,7 +4,7 @@ This page explains the SSD1306 hardware and how the library talks to it. You
 don't need to read this to use the library, but it helps when debugging display
 glitches or writing your own drawing routines.
 
-## The display
+## The display {#the_display}
 
 The SSD1306 is a single-chip driver for 128x64 monochrome OLED panels. It has
 1 KB of internal display RAM (called GDDRAM) that maps directly to pixels on
@@ -14,7 +14,67 @@ There is no local framebuffer on the ATtiny85 side. Every draw call in this
 library sends data straight to the display over I2C. The ATtiny85 only has 512
 bytes of RAM, so buffering 1024 bytes of display data is not an option.
 
-## Memory layout: pages
+## Using a 128x32 display {#display_128x32}
+
+This library initializes for 128x64 by default. If you have a 128x32 module,
+two registers need to change: the multiplex ratio (number of rows) and the COM
+pins configuration. You can override them after init using the existing command
+API -- no library modification needed:
+
+```c
+void setup() {
+    _delay_ms(40);
+    SSD1306.ssd1306_tiny_init();  // use tiny_init to skip the 1024-byte fill
+
+    // Override for 128x32
+    SSD1306.ssd1306_send_command_start();
+    SSD1306.ssd1306_send_byte(0xA8);  // Set multiplex ratio
+    SSD1306.ssd1306_send_byte(0x1F);  // 32 rows (0x1F = 31)
+    SSD1306.ssd1306_send_byte(0xDA);  // Set COM pins configuration
+    SSD1306.ssd1306_send_byte(0x02);  // Sequential COM, no remap (128x32)
+    SSD1306.ssd1306_send_command_stop();
+
+    SSD1306.ssd1306_fillscreen(0);    // clear the visible 4 pages
+}
+```
+
+Use `ssd1306_tiny_init()` instead of `ssd1306_init()` to avoid the default
+1024-byte screen fill. The 128x32 display only has 4 pages (512 bytes), so
+the extra fill writes go to non-visible GDDRAM and waste I2C time.
+
+The SSD1306 controller always has 1 KB of display RAM (8 pages) regardless
+of the physical panel size. Pages 4-7 exist in memory but have no pixels on
+a 128x32 module. Writing to them is harmless -- the data goes to RAM but
+nothing shows on screen.
+
+The drawing functions (`ssd1306_draw_bmp_px`, `ssd1306_setpos`, etc.) work
+on a 128x32 display as long as you stay within pages 0-3 (rows 0-31). The
+bounds checks in the library use page 7 as the maximum, which is fine -- the
+hardware silently ignores pages that don't have physical pixels.
+
+## Dual-color displays (yellow/blue) {#dual_color}
+
+Some SSD1306 and SSD1315 modules are sold as "dual color" or "yellow/blue."
+These have physically different phosphor material deposited on different rows
+of the panel. The typical layout:
+
+- **Rows 0-15 (pages 0-1):** yellow
+- **Rows 16-63 (pages 2-7):** blue
+
+This is a fixed property of the panel. The SSD1306 controller is monochrome
+-- it only knows on/off per pixel and has no color-related commands. You cannot
+change which rows are which color through software. No OLED library can,
+because there is nothing to send over I2C.
+
+What you can do is design your layout around the split. Put a title or status
+bar in the top 16 rows (yellow zone) and your main content below. The
+`ssd1306_setpos()` and `ssd1306_draw_bmp_px()` functions let you place content
+at any row, so you have full control over what lands in which color zone.
+
+The `ssd1306_set_contrast()` function affects the entire display uniformly --
+you cannot set different brightness for the yellow and blue zones.
+
+## Memory layout: pages {#memory_layout}
 
 The display's 128x64 pixels are organized into **8 pages**. Each page is 128
 bytes wide and 8 pixels tall:
@@ -41,11 +101,11 @@ Bit 7 = bottom pixel (row N+7)
 So writing 0xFF to page 0, column 0 turns on all 8 pixels in the top-left
 corner. Writing 0x01 turns on only the top pixel.
 
-## Addressing modes
+## Addressing modes {#addressing_modes}
 
 The SSD1306 supports three addressing modes. This library uses two of them.
 
-### Horizontal addressing (default)
+### Horizontal addressing (default) {#horizontal_addressing}
 
 After writing a byte, the column pointer increments by 1. When it reaches
 column 127, it wraps to column 0 on the next page. This is what
@@ -55,7 +115,7 @@ With horizontal addressing, you can fill the entire screen by setting the
 cursor to (0, 0) and sending 1024 bytes in one go. That is exactly what
 `ssd1306_fillscreen()` does.
 
-### Vertical addressing
+### Vertical addressing {#vertical_addressing}
 
 After writing a byte, the page pointer increments by 1. When it reaches the
 last page, it wraps to page 0 in the next column. Use
@@ -65,11 +125,11 @@ Vertical addressing is useful when your data is organized column-by-column
 rather than row-by-row. The font and bitmap functions in this library assume
 horizontal addressing, so they won't work after a vertical init.
 
-### Page addressing
+### Page addressing {#page_addressing}
 
 Not used by this library. Similar to horizontal but confined to a single page.
 
-## I2C protocol
+## I2C protocol {#i2c_protocol}
 
 The SSD1306 communicates over I2C at address 0x3C (or 0x3D on some modules).
 Every I2C transaction starts with a **control byte** that tells the display
@@ -84,7 +144,7 @@ The library wraps this as `ssd1306_send_command_start()` /
 `ssd1306_send_data_start()`, followed by `ssd1306_send_byte()` calls, and
 ending with `ssd1306_send_command_stop()` / `ssd1306_send_data_stop()`.
 
-## No read-back over I2C
+## No read-back over I2C {#no_readback}
 
 The SSD1306 does support reading GDDRAM back, but only over the parallel
 interface. Over I2C, it is write-only. This has a practical consequence: the
@@ -99,7 +159,7 @@ The compositing functions (`ssd1306_compose_bmp_px` and `ssd1306_send_buf`)
 work around this by merging sprites in a small RAM buffer before sending the
 combined result to the display. See the @ref features page for details.
 
-## Pixel-level positioning (the bit-shift trick)
+## Pixel-level positioning (the bit-shift trick) {#pixel_positioning}
 
 The older `ssd1306_draw_bmp()` requires page-aligned Y coordinates (0, 1, 2,
 ..., 7). That limits vertical positioning to 8-pixel increments.
@@ -121,7 +181,7 @@ This happens during the I2C transmission, one column at a time. No RAM buffer
 needed. The tradeoff is that it still overwrites full page strips -- you cannot
 preserve the surrounding pixels in the same page.
 
-## Initialization sequence
+## Initialization sequence {#init_sequence}
 
 When you call `ssd1306_init()`, the library sends these commands:
 
@@ -137,7 +197,7 @@ When you call `ssd1306_init()`, the library sends these commands:
 | 0xA1       | Segment remap: column 127 mapped to SEG0         |
 | 0xC8       | COM scan direction: bottom to top                |
 | 0xDA 0x12  | COM pins config: for 128x64 panel                |
-| 0x81 0x3F  | Contrast: maximum                                |
+| 0x81 0x3F  | Contrast: default (range 0x00-0xFF)              |
 | 0xD9 0x22  | Pre-charge period                                |
 | 0xDB 0x20  | VCOMH deselect: 0.77 x VCC                       |
 | 0xA4       | Output from RAM (not all-on test mode)           |
@@ -153,7 +213,7 @@ The charge pump (0x8D 0x14) generates the high voltage the OLED panel needs
 from the 3.3V or 5V supply. Most breakout boards do not have an external VBAT
 supply, so the internal charge pump is required.
 
-## I2C implementation
+## I2C implementation {#i2c_implementation}
 
 This library bit-bangs I2C through the ATtiny85's USI (Universal Serial
 Interface) peripheral rather than using the Wire or TinyWireM library. The USI

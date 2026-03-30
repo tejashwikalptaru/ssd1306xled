@@ -153,7 +153,7 @@ class SSD1306Device
 		 *
 		 * Sends the full init sequence (clock, multiplex, charge pump, addressing
 		 * mode, etc.) then fills every pixel with zero. Takes about 20 I2C
-		 * command bytes + 1024 data bytes.
+		 * command bytes (26 total) plus 1024 data bytes.
 		 */
 		void ssd1306_init(void);
 

@@ -3,7 +3,7 @@
 All functions are always compiled and available. The AVR linker strips
 anything your sketch doesn't call, so unused features cost zero flash.
 
-## Flash cost per feature
+## Flash cost per feature {#flash_cost}
 
 Measured on ATtiny85 with avr-gcc. These are the bytes each feature adds
 when your sketch actually uses it:
@@ -21,7 +21,7 @@ when your sketch actually uses it:
 
 If you don't call a function, it doesn't end up in your binary.
 
-## Clipping -- signed X coordinates
+## Clipping -- signed X coordinates {#clipping}
 
 Draw and clear sprites with signed X coordinates. Columns outside 0-127 are
 clipped automatically. Use this when a sprite needs to slide on or off the
@@ -36,7 +36,7 @@ for (int16_t x = -16; x < 128; x++) {
 }
 ```
 
-## Compositing -- flicker-free overlapping sprites
+## Compositing -- flicker-free overlapping sprites {#compositing}
 
 When two sprites share a display page, drawing one overwrites the other's
 pixels (the SSD1306 has no read-back over I2C). Without compositing, you see
@@ -60,7 +60,7 @@ SSD1306.ssd1306_send_buf(20, 3, buf, 8);                    // single write, bot
 The buffer only needs to cover the columns where sprites overlap. For pages
 that only one sprite touches, draw it normally with `ssd1306_draw_bmp_px()`.
 
-## Build flags (PlatformIO only)
+## Build flags (PlatformIO only) {#build_flags}
 
 These flags control compilation when passed via PlatformIO's `build_flags`.
 PlatformIO passes `-D` flags to all compilation units, including library code.
@@ -70,7 +70,7 @@ PlatformIO passes `-D` flags to all compilation units, including library code.
 compilation. In Arduino IDE, the linker already strips unused functions
 automatically, so the main thing you miss is exclusion of font data arrays.
 
-### PlatformIO usage
+### PlatformIO usage {#platformio_usage}
 
 In `platformio.ini`:
 
@@ -80,7 +80,7 @@ build_flags =
     -D SSD1306_NO_FONT_8X16
 ```
 
-### Available flags
+### Available flags {#available_flags}
 
 | Flag | Effect |
 |------|--------|

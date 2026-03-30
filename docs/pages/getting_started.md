@@ -1,12 +1,12 @@
 # Getting started {#getting_started}
 
-## What you need
+## What you need {#what_you_need}
 
 - An ATtiny85 (or any AVR with USI -- ATtiny25/45/85 all work)
 - An SSD1306, SSD1315, or SSH1106 OLED display (128x64, I2C)
 - PlatformIO or Arduino IDE
 
-## Wiring
+## Wiring {#wiring}
 
 Connect four wires between the OLED breakout and the ATtiny85:
 
@@ -37,9 +37,9 @@ screen stays blank after init, try:
 #include <ssd1306xled.h>
 ```
 
-## Installation
+## Installation {#installation}
 
-### PlatformIO
+### PlatformIO {#install_platformio}
 
 ```bash
 pio lib install "ssd1306xled"
@@ -51,17 +51,17 @@ Or add it to `platformio.ini`:
 lib_deps = ssd1306xled
 ```
 
-### Arduino IDE
+### Arduino IDE {#install_arduino}
 
 Open **Tools > Manage Libraries**, search for `ssd1306xled`, and click Install.
 
-### Manual
+### Manual {#install_manual}
 
 Download the latest release from
 [GitHub](https://github.com/tejashwikalptaru/ssd1306xled/releases), unzip it,
 and place the folder in your Arduino libraries directory.
 
-## First program
+## First program {#first_program}
 
 ```c
 #include <Arduino.h>
@@ -94,7 +94,7 @@ If you see nothing on the screen, double-check wiring and try swapping SDA/SCL.
 If the display shows garbage, your module might use address 0x3D -- see the pin
 customization section above.
 
-## Saving flash
+## Saving flash {#saving_flash}
 
 The ATtiny85 has 8 KB of flash. This library was built with that constraint in
 mind. The AVR linker automatically strips any function your sketch does not
