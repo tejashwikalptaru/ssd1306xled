@@ -60,12 +60,16 @@ void loop() {
   SSD1306.ssd1306_string_font6x8("SSD1306XLED");
   _delay_ms(3000);
 
-  // -- Bitmap 1 --
+  // -- Image demo --
+  SSD1306.ssd1306_fillscreen(0);
+  SSD1306.ssd1306_setpos(0, 0);
+  SSD1306.ssd1306_string_font6x8("Image demo");
+  _delay_ms(1500);
+
   SSD1306.ssd1306_fillscreen(0);
   SSD1306.ssd1306_draw_bmp(0, 0, 128, 8, logo);
   _delay_ms(4000);
 
-  // -- Bitmap 2 --
   SSD1306.ssd1306_fillscreen(0);
   SSD1306.ssd1306_draw_bmp(0, 0, 128, 8, logo_two);
   _delay_ms(4000);

@@ -45,17 +45,19 @@ Prints a label at the top and the library name in the middle of the screen
 using the 6x8 font. Each character is 6 pixels wide, so 11 characters take
 66 of the 128 columns.
 
-### Bitmap display {#demo_bitmap}
+### Image demo {#demo_bitmap}
+
+An "Image demo" label appears briefly, then two full-screen bitmaps are drawn
+one after the other.
 
 ```c
 SSD1306.ssd1306_fillscreen(0);
 SSD1306.ssd1306_draw_bmp(0, 0, 128, 8, logo);
 ```
 
-Clears the screen, then draws a full-screen bitmap stored in `image.h`. The
-bitmap data is a `PROGMEM` array of 1024 bytes (128 columns x 8 pages). The
-coordinates (0, 0, 128, 8) cover all 128 columns across all 8 pages. A second
-bitmap from `image_two.h` is drawn the same way.
+Each bitmap is a `PROGMEM` array of 1024 bytes (128 columns x 8 pages). The
+coordinates (0, 0, 128, 8) cover all 128 columns across all 8 pages. The
+first bitmap comes from `image.h`, the second from `image_two.h`.
 
 ### Compositing demo {#demo_compositing}
 
