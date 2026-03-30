@@ -111,7 +111,7 @@ jobs:
       - name: Download AI Changelog from PR
         if: steps.check_skip.outputs.release_created == 'true' && steps.get_pr.outputs.pr_number != ''
         id: download_log
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: pr-checks.yml
