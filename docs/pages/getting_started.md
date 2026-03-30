@@ -96,30 +96,23 @@ customization section above.
 
 ## Saving flash
 
-The ATtiny85 has 8 KB of flash. This library was built with that in mind, but
-you can squeeze out more by excluding features you don't use.
+The ATtiny85 has 8 KB of flash. This library was built with that constraint in
+mind. The AVR linker automatically strips any function your sketch does not
+call, so unused features cost zero flash. You don't need to configure anything
+for this to work.
 
-If you only need bitmaps and no text:
+If you use PlatformIO, you can go further by excluding font data arrays
+entirely with `build_flags` in `platformio.ini`:
 
-```c
-#define SSD1306_NO_FONT_6X8   // saves ~582 bytes
-#define SSD1306_NO_FONT_8X16  // saves ~1570 bytes
-#include <ssd1306xled.h>
+```ini
+build_flags =
+    -D SSD1306_NO_FONT_6X8
+    -D SSD1306_NO_FONT_8X16
+    -D SSD1306_QUICK_BEGIN
 ```
 
-If you use `ssd1306_draw_bmp_px()` and don't need the older page-aligned
-`ssd1306_draw_bmp()`:
+These flags do not work in Arduino IDE (the IDE compiles library files
+separately and does not pass your sketch's defines to them). In Arduino IDE,
+the linker handles the cleanup for you.
 
-```c
-#define SSD1306_NO_DRAW_BMP   // saves ~40 bytes
-#include <ssd1306xled.h>
-```
-
-You can also skip the I2C device check at startup:
-
-```c
-#define SSD1306_QUICK_BEGIN // saves ~50 bytes
-#include <ssd1306xled.h>
-```
-
-See the @ref features page for the full list of opt-in and opt-out flags.
+See the @ref features page for flash cost measurements and all available flags.

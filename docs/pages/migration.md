@@ -39,40 +39,36 @@ nothing changes.
 
 ## Conditional compilation guards
 
-The font and bitmap functions are now wrapped in `#ifndef` guards:
+The font and bitmap functions are wrapped in `#ifndef` guards that can
+exclude them from compilation. These flags only work with PlatformIO's
+`build_flags` (e.g. `-D SSD1306_NO_FONT_6X8` in `platformio.ini`).
 
-```c
-#ifndef SSD1306_NO_FONT_6X8
-    void ssd1306_char_font6x8(char ch);
-    void ssd1306_string_font6x8(const char *s);
-#endif
-```
+They do **not** work as `#define` in Arduino IDE sketches. Arduino compiles
+library `.cpp` files separately and does not pass sketch defines to them.
+In Arduino IDE, the linker strips unused functions automatically, but font
+data arrays remain in the binary.
 
-If you don't define any `SSD1306_NO_*` macros (the default), these guards
-have no effect. Everything is included as before.
+See @ref features for the full list of build flags.
 
-If you define `SSD1306_NO_FONT_6X8` and your sketch calls
-`ssd1306_string_font6x8()`, you will get a compile error. That is by design.
+## New functions
 
-## New opt-in features
+These are available without any flags -- just call them:
 
-Three features are available behind compile-time flags:
+- `ssd1306_draw_bmp_px_clipped()` and `ssd1306_clear_area_px_clipped()` --
+  signed X coordinates with automatic clipping at screen edges.
+- `ssd1306_compose_bmp_px()` and `ssd1306_send_buf()` -- composite
+  overlapping sprites into a buffer to avoid flicker.
 
-- **SSD1306_CLIPPING** -- `ssd1306_draw_bmp_px_clipped()` and
-  `ssd1306_clear_area_px_clipped()` accept signed X coordinates.
-- **SSD1306_COMPOSITING** -- `ssd1306_compose_bmp_px()` and
-  `ssd1306_send_buf()` for merging overlapping sprites.
-- **SSD1306_FAST_FILLSCREEN** -- 4x-unrolled fillscreen loop.
+The AVR linker strips any functions your sketch doesn't call, so these add
+zero flash if unused.
 
-All off by default. Existing code is not affected unless you opt in.
-
-See @ref features for details and code examples.
+See @ref features for details, code examples, and measured flash costs.
 
 ## Flash savings
 
 The internals were refactored to share code between init functions and I2C
-operations. Compiled binary size should drop by about 60 bytes compared to
-v0.0.4. Nothing to do on your end.
+operations. The `ssd1306_fillscreen` loop is now 4x-unrolled by default.
+Compiled binary size should drop compared to v0.0.4. Nothing to do on your end.
 
 ## Version number
 

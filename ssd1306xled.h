@@ -90,69 +90,40 @@ const unsigned char USISR_1bit = 1<<USISIF | 1<<USIOIF | 1<<USIPF | 1<<USIDC | 0
 #define SSD1306_DATA 0x40
 
 // ----------------------------------------------------------------------------
-// Opt-in feature flags
-// ----------------------------------------------------------------------------
-
-/**
- * @defgroup opt_in Opt-in feature flags
- * Define these before including this header to enable extra functionality.
- * Each adds some flash usage.
- * @{
- */
-
-#ifdef DOXYGEN
-/** @def SSD1306_CLIPPING
- * Enables ssd1306_draw_bmp_px_clipped() and ssd1306_clear_area_px_clipped().
- * These accept signed (int16_t) X coordinates, so sprites can slide smoothly
- * on and off the screen edges. Columns outside 0-127 are clipped automatically. */
-#define SSD1306_CLIPPING
-
-/** @def SSD1306_COMPOSITING
- * Enables ssd1306_compose_bmp_px() and ssd1306_send_buf(). Use these when
- * two or more sprites share the same display page -- composite their pixels
- * into a buffer, then send the buffer once. Prevents the flicker you get when
- * drawing one sprite overwrites the other's page data. */
-#define SSD1306_COMPOSITING
-
-/** @def SSD1306_FAST_FILLSCREEN
- * Makes ssd1306_fillscreen() use a 4x-unrolled loop. Costs ~4 extra bytes of
- * flash but fills the screen faster. */
-#define SSD1306_FAST_FILLSCREEN
-#endif
-
-/** @} */ // end opt_in
-
-// ----------------------------------------------------------------------------
 // Opt-out feature flags
 // ----------------------------------------------------------------------------
 
 /**
- * @defgroup opt_out Opt-out feature flags
- * Define these before including this header to exclude features and save flash.
- * Most toolchains with GC sections already drop unused functions at link time,
- * but these flags guarantee exclusion.
+ * @defgroup build_flags Build flags (PlatformIO)
+ * These flags control compilation when passed via PlatformIO `build_flags`
+ * (e.g. `-D SSD1306_NO_FONT_6X8` in platformio.ini). They do NOT work as
+ * `#define` in Arduino IDE sketches because Arduino compiles library .cpp
+ * files separately.
+ *
+ * In Arduino IDE, the linker already strips unused functions automatically.
  * @{
  */
 
 #ifdef DOXYGEN
 /** @def SSD1306_NO_FONT_6X8
  * Exclude the 6x8 font data, ssd1306_char_font6x8(), and
- * ssd1306_string_font6x8(). Saves ~582 bytes. */
+ * ssd1306_string_font6x8(). The 6x8 font costs 678 bytes when used. */
 #define SSD1306_NO_FONT_6X8
 
 /** @def SSD1306_NO_FONT_8X16
- * Exclude the 8x16 font data and ssd1306_string_f8x16(). Saves ~1570 bytes. */
+ * Exclude the 8x16 font data and ssd1306_string_f8x16().
+ * The 8x16 font costs 1722 bytes when used. */
 #define SSD1306_NO_FONT_8X16
 
 /** @def SSD1306_NO_DRAW_BMP
- * Exclude ssd1306_draw_bmp() (the old page-aligned bitmap draw).
- * Use ssd1306_draw_bmp_px() instead. Saves ~40 bytes. */
+ * Exclude ssd1306_draw_bmp() (the page-aligned bitmap draw).
+ * Use ssd1306_draw_bmp_px() instead. Costs 66 bytes when used. */
 #define SSD1306_NO_DRAW_BMP
 
 /** @def SSD1306_QUICK_BEGIN
  * Skip the I2C device-present check during initialization. The normal begin()
  * retries I2CStart until the display ACKs. With this flag, it assumes the
- * display is already there. Saves ~50 bytes. */
+ * display is already there. Saves 62 bytes. */
 #define SSD1306_QUICK_BEGIN
 #endif
 
@@ -271,13 +242,41 @@ class SSD1306Device
 		 * @brief Fill the entire screen with a byte pattern.
 		 *
 		 * Writes 1024 bytes (128 columns x 8 pages). Pass 0x00 to clear the
-		 * screen, 0xFF to turn every pixel on, or any other pattern.
-		 *
-		 * If SSD1306_FAST_FILLSCREEN is defined, uses a 4x-unrolled loop.
+		 * screen, 0xFF to turn every pixel on, or any other pattern. Uses a
+		 * 4x-unrolled loop for speed.
 		 *
 		 * @param fill The byte pattern to repeat across the display.
 		 */
 		void ssd1306_fillscreen(uint8_t fill);
+
+		/**
+		 * @brief Set the display contrast (brightness).
+		 *
+		 * Controls the segment output current. Higher values draw more current
+		 * and produce a brighter image. The init sequence sets this to 0x3F.
+		 *
+		 * Measured current draw on a typical 128x64 module with all pixels on:
+		 * - 0x00: ~8-10 mA
+		 * - 0xFF: ~20-25 mA
+		 *
+		 * @param value Contrast level (0x00 = dimmest, 0xFF = brightest).
+		 */
+		void ssd1306_set_contrast(uint8_t value);
+
+		/**
+		 * @brief Turn the display off (sleep mode).
+		 *
+		 * Puts the SSD1306 into sleep. Current draw drops to ~1 uA. Display
+		 * RAM contents are preserved. Call ssd1306_display_on() to wake up.
+		 */
+		void ssd1306_display_off(void);
+
+		/**
+		 * @brief Turn the display on (wake from sleep).
+		 *
+		 * Resumes display output from RAM. Pair with ssd1306_display_off().
+		 */
+		void ssd1306_display_on(void);
 
 #ifndef SSD1306_NO_FONT_6X8
 		/**
@@ -374,15 +373,12 @@ class SSD1306Device
 		 */
 		void ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages);
 
-#ifdef SSD1306_CLIPPING
 		/**
 		 * @brief Draw a bitmap with signed X coordinate and automatic clipping.
 		 *
 		 * Same as ssd1306_draw_bmp_px() but X is a signed int16_t. Columns that
 		 * fall outside 0-127 (left or right) are clipped. Use this when a sprite
 		 * needs to slide smoothly on or off the screen edges.
-		 *
-		 * Requires: @c \#define @c SSD1306_CLIPPING before including the header.
 		 *
 		 * @param x       Column (can be negative).
 		 * @param y_px    Y position in pixels (0-63).
@@ -400,17 +396,13 @@ class SSD1306Device
 		 * Same as ssd1306_clear_area_px() but with signed X and automatic
 		 * clipping. Pair with ssd1306_draw_bmp_px_clipped().
 		 *
-		 * Requires: @c \#define @c SSD1306_CLIPPING before including the header.
-		 *
 		 * @param x       Column (can be negative).
 		 * @param y_px    Y position in pixels (0-63).
 		 * @param w       Width in columns.
 		 * @param h_pages Height in pages.
 		 */
 		void ssd1306_clear_area_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages);
-#endif
 
-#ifdef SSD1306_COMPOSITING
 		/**
 		 * @brief Composite one sprite into a page buffer using OR.
 		 *
@@ -426,8 +418,6 @@ class SSD1306Device
 		 * SSD1306.ssd1306_compose_bmp_px(buf, 20, 16, 20, 28, 8, 1, sprB, 3);
 		 * SSD1306.ssd1306_send_buf(20, 3, buf, 16);
 		 * @endcode
-		 *
-		 * Requires: @c \#define @c SSD1306_COMPOSITING before including the header.
 		 *
 		 * @param buf           Caller-allocated buffer. Must be zeroed before
 		 *                      compositing each frame.
@@ -453,15 +443,12 @@ class SSD1306Device
 		 * Writes the buffer contents to the display at the given column and page.
 		 * Pair with ssd1306_compose_bmp_px().
 		 *
-		 * Requires: @c \#define @c SSD1306_COMPOSITING before including the header.
-		 *
 		 * @param x    Starting column (0-127). Values >= 128 are a no-op.
 		 * @param page Display page (0-7).
 		 * @param buf  Pointer to the composited byte buffer.
 		 * @param w    Buffer width in columns.
 		 */
 		void ssd1306_send_buf(uint8_t x, uint8_t page, const uint8_t *buf, uint8_t w);
-#endif
 
 	private:
 		void I2CInit();

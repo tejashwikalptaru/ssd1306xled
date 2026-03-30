@@ -22,12 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compact `ssd1306_fillscreen` loop (~4 bytes saved).
 
 ### Added
-- `SSD1306_CLIPPING` opt-in flag: signed X clipping for smooth off-screen sprite entry/exit.
-- `SSD1306_COMPOSITING` opt-in flag: page compositing for flicker-free overlapping sprites (issue #19).
-- `SSD1306_FAST_FILLSCREEN` opt-in flag: 4x-unrolled fillscreen for faster fill operations.
-- `SSD1306_NO_FONT_8X16` opt-out flag: exclude 8x16 font (~1570 bytes saved).
-- `SSD1306_NO_FONT_6X8` opt-out flag: exclude 6x8 font (~582 bytes saved).
-- `SSD1306_NO_DRAW_BMP` opt-out flag: exclude page-aligned `ssd1306_draw_bmp` (~40 bytes saved).
+- `ssd1306_set_contrast()` to control display brightness and reduce current draw (issue #4).
+- `ssd1306_display_off()` and `ssd1306_display_on()` for sleep mode (~1 uA).
+- Signed X clipping: `ssd1306_draw_bmp_px_clipped()` and `ssd1306_clear_area_px_clipped()` for smooth off-screen sprite entry/exit.
+- Page compositing: `ssd1306_compose_bmp_px()` and `ssd1306_send_buf()` for flicker-free overlapping sprites (issue #19).
+- PlatformIO opt-out flags for excluding unused features from compilation: `SSD1306_NO_FONT_6X8`, `SSD1306_NO_FONT_8X16`, `SSD1306_NO_DRAW_BMP`, `SSD1306_QUICK_BEGIN`. Use via `build_flags` in `platformio.ini`. In Arduino IDE, the linker strips unused functions automatically.
 - Doxygen-based documentation site with API reference and guides.
 - CHANGELOG.md (this file).
 

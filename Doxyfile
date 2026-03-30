@@ -30,14 +30,11 @@ EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
 
-# Preprocessing -- define opt-in flags so conditional sections are documented
+# Preprocessing -- define DOXYGEN so @def blocks inside #ifdef DOXYGEN are documented
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
-PREDEFINED             = DOXYGEN \
-                         SSD1306_CLIPPING \
-                         SSD1306_COMPOSITING \
-                         SSD1306_FAST_FILLSCREEN
+PREDEFINED             = DOXYGEN
 
 # C++ / Arduino
 OPTIMIZE_OUTPUT_FOR_C  = YES

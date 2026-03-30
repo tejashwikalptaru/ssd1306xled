@@ -1,27 +1,31 @@
-# Feature flags {#features}
+# Features and flash usage {#features}
 
-This library uses compile-time flags to include or exclude functionality.
-Define them **before** `#include <ssd1306xled.h>`.
+All functions are always compiled and available. The AVR linker strips
+anything your sketch doesn't call, so unused features cost zero flash.
 
-## Opt-in flags
+## Flash cost per feature
 
-These add extra features at the cost of some flash.
+Measured on ATtiny85 with avr-gcc. These are the bytes each feature adds
+when your sketch actually uses it:
 
-### SSD1306_CLIPPING -- signed X coordinates
+| Feature | Flash cost | What it includes |
+|---------|-----------|-----------------|
+| Core (init + fillscreen + setpos) | 756 bytes | I2C driver, init sequence, screen fill |
+| 6x8 font | +678 bytes | `ssd1306_char_font6x8`, `ssd1306_string_font6x8`, font data |
+| 8x16 font | +1722 bytes | `ssd1306_string_f8x16`, font data |
+| Page-aligned bitmap | +66 bytes | `ssd1306_draw_bmp` |
+| Pixel-level bitmap | included in core | `ssd1306_draw_bmp_px`, `ssd1306_clear_area_px` |
+| Signed X clipping | +136 bytes | `ssd1306_draw_bmp_px_clipped`, `ssd1306_clear_area_px_clipped` |
+| Page compositing | +166 bytes | `ssd1306_compose_bmp_px`, `ssd1306_send_buf` |
+| Contrast + display on/off | +68 bytes | `ssd1306_set_contrast`, `ssd1306_display_off`, `ssd1306_display_on` |
 
-```c
-#define SSD1306_CLIPPING
-#include <ssd1306xled.h>
-```
+If you don't call a function, it doesn't end up in your binary.
 
-Adds two functions:
+## Clipping -- signed X coordinates
 
-- `ssd1306_draw_bmp_px_clipped(int16_t x, ...)` -- same as
-  `ssd1306_draw_bmp_px()` but X is signed. Columns outside 0-127 are skipped.
-- `ssd1306_clear_area_px_clipped(int16_t x, ...)` -- same idea for clearing.
-
-Use this when you want a sprite to slide smoothly off the left or right edge
-of the screen without having to bounds-check the coordinates yourself.
+Draw and clear sprites with signed X coordinates. Columns outside 0-127 are
+clipped automatically. Use this when a sprite needs to slide on or off the
+screen edges.
 
 ```c
 // Sprite enters from the left
@@ -32,25 +36,14 @@ for (int16_t x = -16; x < 128; x++) {
 }
 ```
 
-### SSD1306_COMPOSITING -- flicker-free overlapping sprites
+## Compositing -- flicker-free overlapping sprites
 
-```c
-#define SSD1306_COMPOSITING
-#include <ssd1306xled.h>
-```
+When two sprites share a display page, drawing one overwrites the other's
+pixels (the SSD1306 has no read-back over I2C). Without compositing, you see
+flicker as each sprite alternately erases the other.
 
-Adds two functions:
-
-- `ssd1306_compose_bmp_px(buf, ...)` -- OR a sprite's pixels into a
-  caller-provided buffer for one display page.
-- `ssd1306_send_buf(x, page, buf, w)` -- send the finished buffer to the
-  display.
-
-The problem: when two sprites share a display page, drawing one overwrites the
-other's pixels (the SSD1306 has no read-back over I2C). Without compositing,
-you see flicker as each sprite alternately erases the other.
-
-The fix: composite both sprites into a small buffer, then write the buffer once.
+The fix: composite both sprites into a small buffer, then write the buffer
+once.
 
 ```c
 // Two 8x8 sprites at Y=20 and Y=28.
@@ -67,65 +60,31 @@ SSD1306.ssd1306_send_buf(20, 3, buf, 8);                    // single write, bot
 The buffer only needs to cover the columns where sprites overlap. For pages
 that only one sprite touches, draw it normally with `ssd1306_draw_bmp_px()`.
 
-### SSD1306_FAST_FILLSCREEN -- faster screen fill
+## Build flags (PlatformIO only)
 
-```c
-#define SSD1306_FAST_FILLSCREEN
-#include <ssd1306xled.h>
+These flags control compilation when passed via PlatformIO's `build_flags`.
+PlatformIO passes `-D` flags to all compilation units, including library code.
+
+**These flags do not work in Arduino IDE.** The Arduino IDE compiles library
+`.cpp` files separately and does not pass defines from your sketch to library
+compilation. In Arduino IDE, the linker already strips unused functions
+automatically, so the main thing you miss is exclusion of font data arrays.
+
+### PlatformIO usage
+
+In `platformio.ini`:
+
+```ini
+build_flags =
+    -D SSD1306_NO_FONT_6X8
+    -D SSD1306_NO_FONT_8X16
 ```
 
-Makes `ssd1306_fillscreen()` use a 4x-unrolled loop. Costs about 4 extra
-bytes of flash but fills the screen faster. Worth it if you call fillscreen
-frequently (like clearing the screen every frame).
+### Available flags
 
-## Opt-out flags
-
-These exclude features to save flash. Most toolchains with GC sections already
-drop unused functions at link time, but these flags give you guaranteed
-exclusion regardless of toolchain settings.
-
-| Flag                   | What it removes                                         | Flash saved |
-|------------------------|---------------------------------------------------------|-------------|
-| `SSD1306_NO_FONT_6X8` | 6x8 font data + `ssd1306_char_font6x8` + `ssd1306_string_font6x8` | ~582 bytes  |
-| `SSD1306_NO_FONT_8X16` | 8x16 font data + `ssd1306_string_f8x16`                  | ~1570 bytes |
-| `SSD1306_NO_DRAW_BMP`  | Page-aligned `ssd1306_draw_bmp` (use `ssd1306_draw_bmp_px` instead) | ~40 bytes   |
-
-### SSD1306_QUICK_BEGIN
-
-```c
-#define SSD1306_QUICK_BEGIN
-#include <ssd1306xled.h>
-```
-
-Skips the I2C device-present check during `begin()`. Normally the library
-retries `I2CStart` in a loop until the display ACKs. This flag assumes the
-display is already powered and ready. Saves ~50 bytes.
-
-## Combination examples
-
-Bitmap-only project (no text at all):
-
-```c
-#define SSD1306_NO_FONT_6X8
-#define SSD1306_NO_FONT_8X16
-#define SSD1306_NO_DRAW_BMP      // use ssd1306_draw_bmp_px instead
-#define SSD1306_CLIPPING         // smooth edge scrolling
-#define SSD1306_QUICK_BEGIN   // skip device check
-#include <ssd1306xled.h>
-```
-
-Text-only project:
-
-```c
-#define SSD1306_NO_DRAW_BMP
-#include <ssd1306xled.h>
-```
-
-Everything enabled (maximum functionality):
-
-```c
-#define SSD1306_CLIPPING
-#define SSD1306_COMPOSITING
-#define SSD1306_FAST_FILLSCREEN
-#include <ssd1306xled.h>
-```
+| Flag | Effect |
+|------|--------|
+| `SSD1306_NO_FONT_6X8` | Exclude 6x8 font data and rendering functions from compilation |
+| `SSD1306_NO_FONT_8X16` | Exclude 8x16 font data and rendering function from compilation |
+| `SSD1306_NO_DRAW_BMP` | Exclude page-aligned `ssd1306_draw_bmp` from compilation (use `ssd1306_draw_bmp_px` instead) |
+| `SSD1306_QUICK_BEGIN` | Skip the I2C device-present check during init. Saves 62 bytes. Assumes the display is already powered and ready |

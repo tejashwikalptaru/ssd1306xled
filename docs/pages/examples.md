@@ -61,8 +61,7 @@ A second bitmap from `image_two.h` is drawn the same way.
 
 ### Compositing demo
 
-This section only compiles if you define `SSD1306_COMPOSITING` before including
-the library:
+This section of the demo shows how to use the compositing functions:
 
 ```c
 static const uint8_t spriteA[] PROGMEM = {

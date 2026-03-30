@@ -64,7 +64,6 @@ void loop() {
   SSD1306.ssd1306_draw_bmp(0, 0, 128, 8, logo_two);
   _delay_ms(4000);
 
-#ifdef SSD1306_COMPOSITING
   // Compositing demo: two 8x8 sprites on adjacent rows sharing a page.
   // Sprite A at Y=20 touches pages 2-3, sprite B at Y=28 touches pages 3-4.
   // Without compositing, drawing one would clobber the other on page 3.
@@ -92,5 +91,4 @@ void loop() {
   SSD1306.ssd1306_send_buf(20, 3, buf, 8);
 
   _delay_ms(4000);
-#endif
 }

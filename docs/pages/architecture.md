@@ -95,9 +95,9 @@ When you draw a sprite with `ssd1306_draw_bmp_px()`, it overwrites all 8
 vertical pixels in each affected page strip. If another sprite was sharing that
 page, its pixels get wiped out.
 
-The @ref features "compositing feature" (`SSD1306_COMPOSITING`) works around
-this by merging sprites in a small RAM buffer before sending the combined
-result to the display.
+The compositing functions (`ssd1306_compose_bmp_px` and `ssd1306_send_buf`)
+work around this by merging sprites in a small RAM buffer before sending the
+combined result to the display. See the @ref features page for details.
 
 ## Pixel-level positioning (the bit-shift trick)
 

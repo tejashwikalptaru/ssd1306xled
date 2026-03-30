@@ -7,7 +7,7 @@ has reported bugs, contributed code, or helped test new releases.
 
 - **Neven Boyanov / [Tinusaur](https://bitbucket.org/tinusaur/ssd1306xled)** -- wrote the original SSD1306 driver.
 - **David Johnson-Davies / [TinyI2C](https://github.com/technoblogy/tiny-i2c/)** -- wrote the I2C bit-banging implementation this library is based on.
-- **[Tejashwi Kalp Taru](https://github.com/tejashwikalptaru)** -- current maintainer. Integrated the TinyI2C implementation, added pixel-level drawing, clipping, compositing, and opt-in/out feature flags.
+- **[Tejashwi Kalp Taru](https://github.com/tejashwikalptaru)** -- current maintainer. Integrated the TinyI2C implementation, added pixel-level drawing, clipping, compositing, and compile-time feature flags.
 
 ## Contributors
 

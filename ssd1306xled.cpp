@@ -283,19 +283,28 @@ void SSD1306Device::ssd1306_send_data_stop() {
 void SSD1306Device::ssd1306_fillscreen(uint8_t fill) {
 	ssd1306_setpos(0, 0);
 	ssd1306_send_data_start();
-#ifdef SSD1306_FAST_FILLSCREEN
 	for (uint16_t i = 0; i < 128 * 8 / 4; i++) {
 		ssd1306_send_byte(fill);
 		ssd1306_send_byte(fill);
 		ssd1306_send_byte(fill);
 		ssd1306_send_byte(fill);
 	}
-#else
-	for (uint16_t i = 0; i < 1024; i++) {
-		ssd1306_send_byte(fill);
-	}
-#endif
 	ssd1306_send_data_stop();
+}
+
+void SSD1306Device::ssd1306_set_contrast(uint8_t value) {
+	ssd1306_send_command_start();
+	ssd1306_send_byte(0x81);
+	ssd1306_send_byte(value);
+	ssd1306_send_command_stop();
+}
+
+void SSD1306Device::ssd1306_display_off(void) {
+	ssd1306_send_command(0xAE);
+}
+
+void SSD1306Device::ssd1306_display_on(void) {
+	ssd1306_send_command(0xAF);
 }
 
 void SSD1306Device::ssd1306_setpos(uint8_t x, uint8_t y)
@@ -458,8 +467,7 @@ void SSD1306Device::ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, ui
 	}
 }
 
-// --- Optional: Signed X clipping support ---
-#ifdef SSD1306_CLIPPING
+// --- Signed X clipping support ---
 
 void SSD1306Device::ssd1306_draw_bmp_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])
 {
@@ -543,11 +551,9 @@ void SSD1306Device::ssd1306_clear_area_px_clipped(int16_t x, uint8_t y_px, uint8
 	}
 }
 
-#endif // SSD1306_CLIPPING
 
 
-// --- Optional: Page compositing support ---
-#ifdef SSD1306_COMPOSITING
+// --- Page compositing support ---
 
 void SSD1306Device::ssd1306_compose_bmp_px(uint8_t *buf, uint8_t buf_x, uint8_t buf_w,
 	int16_t sprite_x, uint8_t sprite_y_px,
@@ -600,7 +606,6 @@ void SSD1306Device::ssd1306_send_buf(uint8_t x, uint8_t page, const uint8_t *buf
 	ssd1306_send_data_stop();
 }
 
-#endif // SSD1306_COMPOSITING
 
 
 SSD1306Device SSD1306;
