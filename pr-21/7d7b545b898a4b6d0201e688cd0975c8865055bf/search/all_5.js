@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['change_0',['One thing you must change',['../migration.html#rename',1,'']]],
+  ['change_20behavior_1',['Bug fixes that change behavior',['../migration.html#bug_fixes',1,'']]],
+  ['changelog_2',['Changelog',['../index.html#autotoc_md9',1,'']]],
+  ['checking_20on_20ssd1306_5fdraw_5fbmp_5fpx_20ssd1306_5fclear_5farea_5fpx_3',['X bounds checking on ssd1306_draw_bmp_px / ssd1306_clear_area_px',['../migration.html#x_bounds',1,'']]],
+  ['clipping_4',['The fix: clipping',['../examples.html#overlap_clipping',1,'']]],
+  ['clipping_20fix_5',['The clipping fix',['../examples.html#invaders_clipping',1,'']]],
+  ['clipping_20ndash_20signed_20x_20coordinates_6',['Clipping &amp;ndash; signed X coordinates',['../features.html#clipping',1,'']]],
+  ['color_20displays_20yellow_20blue_7',['Dual-color displays (yellow/blue)',['../architecture.html#dual_color',1,'']]],
+  ['compilation_20guards_8',['Conditional compilation guards',['../migration.html#compilation_guards',1,'']]],
+  ['compositing_9',['The fix: compositing',['../examples.html#overlap_fix',1,'']]],
+  ['compositing_20demo_10',['Compositing demo',['../examples.html#demo_compositing',1,'']]],
+  ['compositing_20fix_11',['The compositing fix',['../examples.html#invaders_compositing',1,'']]],
+  ['compositing_20ndash_20flicker_20free_20overlapping_20sprites_12',['Compositing &amp;ndash; flicker-free overlapping sprites',['../features.html#compositing',1,'']]],
+  ['conditional_20compilation_20guards_13',['Conditional compilation guards',['../migration.html#compilation_guards',1,'']]],
+  ['configuration_14',['Hardware configuration',['../group__hw__config.html',1,'']]],
+  ['contributing_15',['Contributing',['../index.html#autotoc_md10',1,'']]],
+  ['contributors_16',['contributors',['../contributors.html#contributor_list',1,'Contributors'],['../contributors.html',1,'Contributors']]],
+  ['contributors_2emd_17',['contributors.md',['../contributors_8md.html',1,'']]],
+  ['coordinates_18',['Clipping &amp;ndash; signed X coordinates',['../features.html#clipping',1,'']]],
+  ['cost_20per_20feature_19',['Flash cost per feature',['../features.html#flash_cost',1,'']]],
+  ['creating_20your_20own_20bitmaps_20',['Creating your own bitmaps',['../examples.html#creating_bitmaps',1,'']]],
+  ['credits_21',['Credits',['../index.html#autotoc_md11',1,'']]]
+];
