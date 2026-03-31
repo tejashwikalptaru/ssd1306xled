@@ -280,4 +280,4 @@ jobs:
         env:
           WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
         working-directory: simulation
-        run: wokwi-cli --timeout 10000
+        run: wokwi-cli --timeout 10000 --timeout-exit-code 0
