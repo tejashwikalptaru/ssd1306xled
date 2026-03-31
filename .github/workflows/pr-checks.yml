@@ -242,7 +242,6 @@ jobs:
     name: Wokwi Simulation Test
     runs-on: ubuntu-latest
     needs: [compile-examples]
-    if: ${{ secrets.WOKWI_CLI_TOKEN != '' }}
 
     steps:
       - name: Checkout code
