@@ -156,6 +156,7 @@ jobs:
           - tiny_gilbert
           - tiny_space_invaders
           - tiny_bomber
+          - fur_elise
 
     steps:
       - name: Checkout code

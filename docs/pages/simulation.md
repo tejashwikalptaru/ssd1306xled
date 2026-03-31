@@ -122,6 +122,7 @@ make simulate                          # build + print next steps
 | `tiny_gilbert` | Platformer with 10 levels by Daniel Champagne (GPLv3). Needs potentiometer + button for full play; runs as display demo in simulator |
 | `tiny_space_invaders` | Space Invaders clone by Daniel Champagne (GPLv3). Same control requirements |
 | `tiny_bomber` | Bomberman with 3 levels by Daniel Champagne (GPLv3). Same control requirements |
+| `fur_elise` | Plays Fur Elise on the PB4 buzzer while showing scrolling note names on the display |
 
 ## How it works {#sim_how}
 

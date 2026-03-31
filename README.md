@@ -86,6 +86,15 @@ void loop() {
 
 This clears the screen and prints "Hello world!" on the second row using the 6x8 font.
 
+## Try it online
+
+You can run these demos in your browser without any hardware using the Wokwi simulator:
+
+- **[SSD1306xLED demo](https://wokwi.com/projects/459998768896884737)** -- cycles through fill patterns, text rendering, and full-screen bitmaps on the OLED. A quick way to see what the library can do.
+- **[Fur Elise](https://wokwi.com/projects/460017438950831105)** -- plays Beethoven's Fur Elise on a piezo buzzer while showing note names and a pitch bar on the display. Fits in 2.5 KB of flash.
+
+More examples (including three games) are in the [examples/](examples/) directory. See the [simulation guide](https://tejashwikalptaru.github.io/ssd1306xled/simulation.html) for running them locally with Wokwi.
+
 ## Documentation
 
 Full API reference, architecture guide, feature flags, and examples are available on the documentation site:

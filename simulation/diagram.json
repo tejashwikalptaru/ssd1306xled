@@ -10,13 +10,22 @@
       "top": 3.14,
       "left": 38.63,
       "attrs": { "i2cAddress": "0x3c" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -141.6,
+      "left": -132.6,
+      "attrs": { "mode": "accurate", "volume": "0.5" }
     }
   ],
   "connections": [
-    [ "oled1:SCL", "tiny:PB2", "blue", [ "v-105.6", "h-124.5" ] ],
     [ "tiny:PB0", "oled1:SDA", "green", [ "h0" ] ],
     [ "tiny:GND", "oled1:GND", "black", [ "v0", "h94.8" ] ],
-    [ "tiny:VCC", "oled1:VCC", "red", [ "v-18", "h134.4" ] ]
+    [ "tiny:VCC", "oled1:VCC", "red", [ "v-18", "h134.4" ] ],
+    [ "tiny:PB2", "oled1:SCL", "blue", [ "v-37.2", "h124.4" ] ],
+    [ "bz1:1", "tiny:GND", "black", [ "v67.2", "h76.4" ] ],
+    [ "bz1:2", "tiny:PB4", "gold", [ "v57.6", "h76.8" ] ]
   ],
   "dependencies": {}
 }
