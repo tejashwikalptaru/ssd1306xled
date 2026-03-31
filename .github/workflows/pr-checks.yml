@@ -152,6 +152,7 @@ jobs:
         example:
           - OLED_demo
           - sprite_overlap_fix
+          - invaders_fix
 
     steps:
       - name: Checkout code

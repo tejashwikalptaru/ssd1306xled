@@ -25,7 +25,8 @@ USE_MDFILE_AS_MAINPAGE = README.md
 EXAMPLE_PATH           = examples
 IMAGE_PATH             = images \
                          examples/OLED_demo \
-                         examples/sprite_overlap_fix
+                         examples/sprite_overlap_fix \
+                         examples/invaders_fix
 
 # Extraction
 EXTRACT_ALL            = YES

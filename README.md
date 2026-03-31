@@ -4,6 +4,8 @@ A lightweight driver for SSD1306, SSD1315, and SSH1106 OLED displays. Built for 
 
 Originally written by Neven Boyanov and the Tinusaur team.
 
+![demo](https://raw.githubusercontent.com/tejashwikalptaru/ssd1306xled/master/images/ssd1306xled.gif "ssd1306xled demo")
+
 ## Wiring (ATtiny85)
 
 | OLED | ATtiny85 |

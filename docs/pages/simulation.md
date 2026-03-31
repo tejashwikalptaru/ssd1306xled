@@ -118,6 +118,7 @@ make simulate                          # build + print next steps
 |---------|---------------|
 | `OLED_demo` | Fill patterns, text, bitmaps, and compositing |
 | `sprite_overlap_fix` | The bug from [issue #19](https://github.com/tejashwikalptaru/ssd1306xled/issues/19): sprite flicker on shared pages, and the compositing/clipping fix |
+| `invaders_fix` | Reproduces [issue #19](https://github.com/tejashwikalptaru/ssd1306xled/issues/19) with the reporter's game sprites: overlap bug, compositing fix, clipping fix, and a shooting demo with explosion animation |
 
 ## How it works {#sim_how}
 

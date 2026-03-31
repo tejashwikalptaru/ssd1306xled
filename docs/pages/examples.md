@@ -181,6 +181,98 @@ The saucer slides in from the left edge, partially visible at first, then
 fully on-screen. No jump, no wrap-around. See @ref clipping for the API
 details.
 
+## invaders_fix.ino {#invaders_fix}
+
+A user building a Space Invaders game on the ATtiny85 ran into two
+problems and reported them in
+[issue #19](https://github.com/tejashwikalptaru/ssd1306xled/issues/19).
+
+@image html invaders-fix.gif "invaders_fix running in the Wokwi simulator"
+This example pulls their actual sprite data and recreates both bugs on
+screen, then fixes them. It walks through four scenes that loop:
+
+1. The overlap bug (broken)
+2. The compositing fix (working)
+3. The clipping fix for off-screen sprites
+4. A shooting demo with explosion animation
+
+The sprites in `sprites.h` come straight from the reporter's code -- two
+invader types with animation frames, a saucer, a turret, and an explosion.
+
+### The overlap bug {#invaders_bug}
+
+Five type-1 invaders at Y=19 and five type-2 invaders at Y=28. Both rows
+touch page 3 (rows 24-31). When the second row draws to page 3, it
+overwrites the first row's pixels there. The bottom edge of the top row
+disappears.
+
+### The compositing fix {#invaders_compositing}
+
+Draw both rows normally first -- that gets pages 2 and 4 right. Then fix
+page 3 by compositing both rows into a buffer and sending it once:
+
+```c
+SSD1306.ssd1306_draw_bmp_px(x, 19, 16, 1, invaderA);
+SSD1306.ssd1306_draw_bmp_px(x, 28, 16, 1, invader2A);
+
+uint8_t buf[16];
+memset(buf, 0, 16);
+SSD1306.ssd1306_compose_bmp_px(buf, x, 16, x, 19, 16, 1, invaderA,  3);
+SSD1306.ssd1306_compose_bmp_px(buf, x, 16, x, 28, 16, 1, invader2A, 3);
+SSD1306.ssd1306_send_buf(x, 3, buf, 16);
+```
+
+Both rows show up cleanly. Page 3 now has the OR of both sprites' bits
+instead of just the last one written.
+
+### The clipping fix {#invaders_clipping}
+
+The reporter's saucer started at X=-16 to slide in from the left edge.
+`ssd1306_draw_bmp_px` takes an unsigned X, so negative values wrap to
+large positive ones and the sprite jumps across the screen. The `_clipped`
+variant accepts signed X and clips columns outside 0-127:
+
+```c
+for (int16_t x = -16; x <= 112; x++) {
+    SSD1306.ssd1306_clear_area_px_clipped(x - 1, 8, 16, 1);
+    SSD1306.ssd1306_draw_bmp_px_clipped(x, 8, 16, 1, saucer);
+    _delay_ms(20);
+}
+```
+
+The saucer enters gradually from off-screen. No jump.
+
+### Shooting with explosions {#invaders_shooting}
+
+The last scene ties it all together. A turret at the bottom of the screen
+shoots three invaders in the second row, one at a time. A bullet sprite
+travels upward from the turret to the target. On hit, the invader is
+replaced with an explosion sprite that flashes three times.
+
+The tricky part: the explosion happens on row 2 (Y=28), which shares
+page 3 with row 1 (Y=19). Without compositing, the explosion would
+erase row 1's pixels on that page. The demo recomposites page 3 on every
+explosion frame so the top row stays intact while the blast animates
+below it:
+
+```c
+// Draw explosion on row 2
+SSD1306.ssd1306_draw_bmp_px(inv_x, ROW2_Y, 16, 1, invBlast);
+
+// Recomposite page 3: row 1 invader + explosion, OR'd together
+uint8_t buf[16];
+memset(buf, 0, 16);
+SSD1306.ssd1306_compose_bmp_px(buf, inv_x, 16, inv_x, ROW1_Y, 16, 1, invaderA,  3);
+SSD1306.ssd1306_compose_bmp_px(buf, inv_x, 16, inv_x, ROW2_Y, 16, 1, invBlast,  3);
+SSD1306.ssd1306_send_buf(inv_x, 3, buf, 16);
+```
+
+After the explosion finishes, page 3 is recomposited one more time with
+just row 1, leaving the destroyed invader's slot empty.
+
+Run it in the simulator with `make build EXAMPLE=invaders_fix`.
+See the @ref simulation page for setup.
+
 ## Creating your own bitmaps {#creating_bitmaps}
 
 Bitmap data for the SSD1306 is organized page-by-page, left to right, top to
