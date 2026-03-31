@@ -1,6 +1,6 @@
 PIO := $(HOME)/.platformio/penv/bin/pio
 EXAMPLES_DIR := ../examples
-EXAMPLE ?= sprite_overlap_fix
+EXAMPLE ?= OLED_demo
 
 AVAILABLE := $(notdir $(wildcard $(EXAMPLES_DIR)/*))
 

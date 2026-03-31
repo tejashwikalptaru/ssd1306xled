@@ -26,7 +26,10 @@ EXAMPLE_PATH           = examples
 IMAGE_PATH             = images \
                          examples/OLED_demo \
                          examples/sprite_overlap_fix \
-                         examples/invaders_fix
+                         examples/invaders_fix \
+                         examples/tiny_gilbert \
+                         examples/tiny_space_invaders \
+                         examples/tiny_bomber
 
 # Extraction
 EXTRACT_ALL            = YES

@@ -119,6 +119,9 @@ make simulate                          # build + print next steps
 | `OLED_demo` | Fill patterns, text, bitmaps, and compositing |
 | `sprite_overlap_fix` | The bug from [issue #19](https://github.com/tejashwikalptaru/ssd1306xled/issues/19): sprite flicker on shared pages, and the compositing/clipping fix |
 | `invaders_fix` | Reproduces [issue #19](https://github.com/tejashwikalptaru/ssd1306xled/issues/19) with the reporter's game sprites: overlap bug, compositing fix, clipping fix, and a shooting demo with explosion animation |
+| `tiny_gilbert` | Platformer with 10 levels by Daniel Champagne (GPLv3). Needs potentiometer + button for full play; runs as display demo in simulator |
+| `tiny_space_invaders` | Space Invaders clone by Daniel Champagne (GPLv3). Same control requirements |
+| `tiny_bomber` | Bomberman with 3 levels by Daniel Champagne (GPLv3). Same control requirements |
 
 ## How it works {#sim_how}
 

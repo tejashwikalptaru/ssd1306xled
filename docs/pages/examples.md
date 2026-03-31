@@ -273,6 +273,57 @@ just row 1, leaving the destroyed invader's slot empty.
 Run it in the simulator with `make build EXAMPLE=invaders_fix`.
 See the @ref simulation page for setup.
 
+## Games {#games}
+
+Three ATtiny85 games by Daniel Champagne ship as examples. They were
+originally written for ssd1306xled v0.0.1 and use only the low-level byte
+transmission functions (`ssd1306_send_command`, `ssd1306_send_byte`,
+`ssd1306_send_data_start/stop`), so they work on v1.0.0 without changes.
+
+All three need a potentiometer on A3 for movement and a button on PB1 for
+action. A piezo buzzer on PB4 handles sound. In the Wokwi simulator they
+run without controls and show their title screens or idle behavior.
+
+Source code and GPLv3 license:
+[Daniel Champagne's Arduino collection](https://sites.google.com/view/arduino-collection)
+
+### tiny_gilbert {#tiny_gilbert}
+
+@image html tiny-gilbert.gif "Tiny Gilbert running in the Wokwi simulator"
+
+A platformer with 10 levels. Collect keys to open the exit door, avoid
+spikes, and jump between platforms. The player has a 3-frame walking
+animation and the camera scrolls to follow movement. Uses 98.5% of the
+ATtiny85's 8 KB flash and 73% of its 512 bytes of RAM.
+
+```bash
+make build EXAMPLE=tiny_gilbert
+```
+
+### tiny_space_invaders {#tiny_space_invaders}
+
+@image html space-invaders.gif "Tiny Space Invaders running in the Wokwi simulator"
+
+A Space Invaders clone with 9 difficulty levels, 6 destructible shields,
+and a bonus UFO. Four rows of six aliens march across the screen, descend,
+and fire back. Shooting the UFO earns an extra life. Uses 98.1% flash.
+
+```bash
+make build EXAMPLE=tiny_space_invaders
+```
+
+### tiny_bomber {#tiny_bomber}
+
+@image html tiny-bomber.gif "Tiny Bomber running in the Wokwi simulator"
+
+A Bomberman-style game with 3 levels. Drop bombs to destroy blocks and
+four enemies that wander the grid. Bombs explode after a timer, and the
+blast can chain through destructible terrain. Uses 96.5% flash.
+
+```bash
+make build EXAMPLE=tiny_bomber
+```
+
 ## Creating your own bitmaps {#creating_bitmaps}
 
 Bitmap data for the SSD1306 is organized page-by-page, left to right, top to

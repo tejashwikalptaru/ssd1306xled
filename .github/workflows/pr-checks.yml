@@ -153,6 +153,9 @@ jobs:
           - OLED_demo
           - sprite_overlap_fix
           - invaders_fix
+          - tiny_gilbert
+          - tiny_space_invaders
+          - tiny_bomber
 
     steps:
       - name: Checkout code
