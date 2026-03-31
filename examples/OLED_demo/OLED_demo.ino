@@ -41,26 +41,75 @@ void setup() {
 }
 
 void loop() {
-  uint8_t p = 0xff;
-  for (uint8_t i = 0; i < 4; i++){
-    p = (p >> i);
-    SSD1306.ssd1306_fillscreen(~p);
-    _delay_ms(100);
-  }
+  // -- Fill patterns --
   SSD1306.ssd1306_fillscreen(0);
-  SSD1306.ssd1306_setpos(0, 1);
-  SSD1306.ssd1306_string_font6x8("That's the");
-  SSD1306.ssd1306_setpos(43, 3);
-  SSD1306.ssd1306_string_font6x8("project");
+  SSD1306.ssd1306_setpos(0, 0);
+  SSD1306.ssd1306_string_font6x8("Fill patterns");
+  _delay_ms(1500);
+
+  for (uint8_t i = 0; i < 8; i++) {
+    SSD1306.ssd1306_fillscreen(i);
+    _delay_ms(200);
+  }
+
+  // -- Text --
+  SSD1306.ssd1306_fillscreen(0);
+  SSD1306.ssd1306_setpos(0, 0);
+  SSD1306.ssd1306_string_font6x8("Text demo");
   SSD1306.ssd1306_setpos(0, 3);
-  SSD1306.ssd1306_string_font6x8("The platform that gives you everything you need for your first microcontroller project");
-  SSD1306.ssd1306_setpos(12, 7);
-  SSD1306.ssd1306_string_font6x8("http://tinusaur.org");
-  _delay_ms(6000);
+  SSD1306.ssd1306_string_font6x8("SSD1306XLED");
+  _delay_ms(3000);
+
+  // -- Image demo --
+  SSD1306.ssd1306_fillscreen(0);
+  SSD1306.ssd1306_setpos(0, 0);
+  SSD1306.ssd1306_string_font6x8("Image demo");
+  _delay_ms(1500);
+
   SSD1306.ssd1306_fillscreen(0);
   SSD1306.ssd1306_draw_bmp(0, 0, 128, 8, logo);
   _delay_ms(4000);
+
   SSD1306.ssd1306_fillscreen(0);
   SSD1306.ssd1306_draw_bmp(0, 0, 128, 8, logo_two);
+  _delay_ms(4000);
+
+  // -- Compositing demo --
+  // Two 8x8 sprites on adjacent rows that share page 3.
+  // Sprite A at Y=20 touches pages 2-3, sprite B at Y=28 touches pages 3-4.
+  static const uint8_t spriteA[] PROGMEM = {
+    0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF  // hollow rectangle
+  };
+  static const uint8_t spriteB[] PROGMEM = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // filled rectangle
+  };
+
+  // First show the broken result: drawing both sprites normally
+  // causes the second draw to overwrite the first on page 3.
+  SSD1306.ssd1306_fillscreen(0);
+  SSD1306.ssd1306_setpos(0, 0);
+  SSD1306.ssd1306_string_font6x8("No compositing");
+  SSD1306.ssd1306_draw_bmp_px(20, 20, 8, 1, spriteA);
+  SSD1306.ssd1306_draw_bmp_px(20, 28, 8, 1, spriteB);
+  _delay_ms(4000);
+
+  // Now show the correct result using compositing.
+  // Both sprites are OR'd into a buffer for the shared page,
+  // then sent in a single write.
+  SSD1306.ssd1306_fillscreen(0);
+  SSD1306.ssd1306_setpos(0, 0);
+  SSD1306.ssd1306_string_font6x8("With compositing");
+
+  // Non-shared pages are drawn normally
+  SSD1306.ssd1306_draw_bmp_px(20, 20, 8, 1, spriteA);  // page 2
+  SSD1306.ssd1306_draw_bmp_px(20, 28, 8, 1, spriteB);  // page 4
+
+  // Shared page 3: composite both sprites into a buffer
+  uint8_t buf[8];
+  memset(buf, 0, 8);
+  SSD1306.ssd1306_compose_bmp_px(buf, 20, 8, 20, 20, 8, 1, spriteA, 3);
+  SSD1306.ssd1306_compose_bmp_px(buf, 20, 8, 20, 28, 8, 1, spriteB, 3);
+  SSD1306.ssd1306_send_buf(20, 3, buf, 8);
+
   _delay_ms(4000);
 }

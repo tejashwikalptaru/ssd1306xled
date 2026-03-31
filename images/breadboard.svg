@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 510" font-family="Arial, sans-serif">
+  <defs>
+    <style>
+      .label { font-size: 11px; fill: #333; }
+      .pin-label { font-size: 9px; fill: #555; font-weight: bold; }
+      .title { font-size: 14px; fill: #222; font-weight: bold; }
+      .wire-vcc { stroke: #e53935; stroke-width: 2.5; fill: none; }
+      .wire-gnd { stroke: #222; stroke-width: 2.5; fill: none; }
+      .wire-scl { stroke: #1565c0; stroke-width: 2.5; fill: none; }
+      .wire-sda { stroke: #2e7d32; stroke-width: 2.5; fill: none; }
+      .component { stroke: #666; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="520" fill="#f5f5f0" rx="8"/>
+
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" class="title">ATtiny85 + SSD1306 OLED Wiring</text>
+
+  <!-- ============================================================ -->
+  <!-- Breadboard -->
+  <!-- ============================================================ -->
+  <rect x="80" y="60" width="640" height="340" rx="6" fill="#e8e4d8" stroke="#bbb" stroke-width="1.5"/>
+
+  <!-- Top power rail: + (red) -->
+  <rect x="100" y="75" width="600" height="12" rx="2" fill="#ffcdd2" stroke="#e57373"/>
+  <text x="92" y="85" text-anchor="end" font-size="10" fill="#c62828" font-weight="bold">+</text>
+  <!-- Top power rail: - (blue) -->
+  <rect x="100" y="92" width="600" height="12" rx="2" fill="#bbdefb" stroke="#64b5f6"/>
+  <text x="92" y="102" text-anchor="end" font-size="10" fill="#1565c0" font-weight="bold">−</text>
+
+  <!-- Bottom power rail: + (red) -->
+  <rect x="100" y="365" width="600" height="12" rx="2" fill="#ffcdd2" stroke="#e57373"/>
+  <text x="92" y="375" text-anchor="end" font-size="10" fill="#c62828" font-weight="bold">+</text>
+  <!-- Bottom power rail: - (blue) -->
+  <rect x="100" y="382" width="600" height="12" rx="2" fill="#bbdefb" stroke="#64b5f6"/>
+  <text x="92" y="392" text-anchor="end" font-size="10" fill="#1565c0" font-weight="bold">−</text>
+
+  <!-- Center divider -->
+  <rect x="100" y="222" width="600" height="6" rx="1" fill="#d5d0c4"/>
+
+  <!-- Row holes: top section (rows a-e) -->
+  <g fill="#999" opacity="0.3">
+    <!-- 5 rows x ~30 columns, simplified -->
+    <g transform="translate(120, 120)">
+      <!-- Row a-e indicators -->
+      <text x="-25" y="5" font-size="9" fill="#888">a</text>
+      <text x="-25" y="25" font-size="9" fill="#888">b</text>
+      <text x="-25" y="45" font-size="9" fill="#888">c</text>
+      <text x="-25" y="65" font-size="9" fill="#888">d</text>
+      <text x="-25" y="85" font-size="9" fill="#888">e</text>
+    </g>
+    <!-- Row f-j indicators -->
+    <g transform="translate(120, 240)">
+      <text x="-25" y="5" font-size="9" fill="#888">f</text>
+      <text x="-25" y="25" font-size="9" fill="#888">g</text>
+      <text x="-25" y="45" font-size="9" fill="#888">h</text>
+      <text x="-25" y="65" font-size="9" fill="#888">i</text>
+      <text x="-25" y="85" font-size="9" fill="#888">j</text>
+    </g>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- ATtiny85 (DIP-8) straddling the center divider -->
+  <!-- ============================================================ -->
+  <g transform="translate(250, 185)">
+    <!-- IC body -->
+    <rect x="0" y="0" width="80" height="80" rx="4" fill="#333" stroke="#111" stroke-width="1.5"/>
+    <!-- Notch -->
+    <circle cx="40" cy="4" r="6" fill="#444" stroke="#555"/>
+    <!-- Pin dots -->
+    <circle cx="10" cy="0" r="3" fill="#999"/>   <!-- Pin 1 (top-left) -->
+    <circle cx="30" cy="0" r="3" fill="#999"/>   <!-- Pin 2 -->
+    <circle cx="50" cy="0" r="3" fill="#999"/>   <!-- Pin 3 -->
+    <circle cx="70" cy="0" r="3" fill="#999"/>   <!-- Pin 4 -->
+    <circle cx="10" cy="80" r="3" fill="#999"/>  <!-- Pin 5 -->
+    <circle cx="30" cy="80" r="3" fill="#999"/>  <!-- Pin 6 -->
+    <circle cx="50" cy="80" r="3" fill="#999"/>  <!-- Pin 7 -->
+    <circle cx="70" cy="80" r="3" fill="#999"/>  <!-- Pin 8 -->
+    <!-- IC label -->
+    <text x="40" y="35" text-anchor="middle" font-size="11" fill="#ccc" font-weight="bold">ATtiny85</text>
+    <text x="40" y="52" text-anchor="middle" font-size="9" fill="#999">DIP-8</text>
+
+    <!-- Pin labels (outside the chip) -->
+    <text x="10" y="-10" text-anchor="middle" class="pin-label">1</text>
+    <text x="10" y="-20" text-anchor="middle" font-size="8" fill="#c62828">RST</text>
+    <text x="30" y="-10" text-anchor="middle" class="pin-label">2</text>
+    <text x="30" y="-20" text-anchor="middle" font-size="8" fill="#555">PB3</text>
+    <text x="50" y="-10" text-anchor="middle" class="pin-label">3</text>
+    <text x="50" y="-20" text-anchor="middle" font-size="8" fill="#555">PB4</text>
+    <text x="70" y="-10" text-anchor="middle" class="pin-label">4</text>
+    <text x="70" y="-20" text-anchor="middle" font-size="8" fill="#222">GND</text>
+
+    <text x="10" y="98" text-anchor="middle" class="pin-label">5</text>
+    <text x="10" y="108" text-anchor="middle" font-size="8" fill="#2e7d32">PB0</text>
+    <text x="10" y="117" text-anchor="middle" font-size="7" fill="#2e7d32">SDA</text>
+    <text x="30" y="98" text-anchor="middle" class="pin-label">6</text>
+    <text x="30" y="108" text-anchor="middle" font-size="8" fill="#555">PB1</text>
+    <text x="50" y="98" text-anchor="middle" class="pin-label">7</text>
+    <text x="50" y="108" text-anchor="middle" font-size="8" fill="#1565c0">PB2</text>
+    <text x="50" y="117" text-anchor="middle" font-size="7" fill="#1565c0">SCL</text>
+    <text x="70" y="98" text-anchor="middle" class="pin-label">8</text>
+    <text x="70" y="108" text-anchor="middle" font-size="8" fill="#c62828">VCC</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- SSD1306 OLED module -->
+  <!-- ============================================================ -->
+  <g transform="translate(480, 240)">
+    <!-- PCB -->
+    <rect x="0" y="0" width="120" height="90" rx="4" fill="#1a5276" stroke="#0d3b5e" stroke-width="1.5"/>
+    <!-- Screen -->
+    <rect x="10" y="8" width="100" height="55" rx="2" fill="#111" stroke="#333"/>
+    <!-- Screen text -->
+    <text x="60" y="38" text-anchor="middle" font-size="10" fill="#4fc3f7">SSD1306</text>
+    <text x="60" y="52" text-anchor="middle" font-size="8" fill="#4fc3f7">128x64</text>
+    <!-- Pin header -->
+    <rect x="20" y="70" width="80" height="14" rx="2" fill="#444"/>
+    <!-- Pin labels -->
+    <text x="32" y="82" text-anchor="middle" font-size="8" fill="#fff">GND</text>
+    <text x="52" y="82" text-anchor="middle" font-size="8" fill="#fff">VCC</text>
+    <text x="72" y="82" text-anchor="middle" font-size="8" fill="#fff">SCL</text>
+    <text x="92" y="82" text-anchor="middle" font-size="8" fill="#fff">SDA</text>
+    <!-- Pin dots -->
+    <circle cx="32" cy="90" r="3" fill="#999"/>
+    <circle cx="52" cy="90" r="3" fill="#999"/>
+    <circle cx="72" cy="90" r="3" fill="#999"/>
+    <circle cx="92" cy="90" r="3" fill="#999"/>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- Wires -->
+  <!-- ============================================================ -->
+
+  <!-- VCC: ATtiny85 pin 8 → top + rail → OLED VCC -->
+  <!-- ATtiny85 pin 8 is at (320, 265) bottom side, going down to bottom row, then up to + rail -->
+  <path d="M 320 265 L 320 375" class="wire-vcc"/>
+  <circle cx="320" cy="375" r="3" fill="#e53935"/>
+  <!-- + rail to OLED VCC -->
+  <path d="M 532 375 L 532 330" class="wire-vcc"/>
+  <circle cx="532" cy="375" r="3" fill="#e53935"/>
+
+  <!-- GND: ATtiny85 pin 4 → bottom - rail → OLED GND -->
+  <path d="M 320 185 L 320 98" class="wire-gnd"/>
+  <circle cx="320" cy="98" r="3" fill="#222"/>
+  <!-- - rail to OLED GND -->
+  <path d="M 512 98 L 512 330" class="wire-gnd"/>
+  <circle cx="512" cy="98" r="3" fill="#222"/>
+
+  <!-- SCL: ATtiny85 pin 7 (PB2) → OLED SCL -->
+  <!-- Pin 7 is at (300, 265) bottom side -->
+  <path d="M 300 280 L 300 340 L 552 340 L 552 330" class="wire-scl"/>
+  <circle cx="300" cy="280" r="3" fill="#1565c0"/>
+  <circle cx="552" cy="330" r="3" fill="#1565c0"/>
+
+  <!-- SDA: ATtiny85 pin 5 (PB0) → OLED SDA -->
+  <!-- Pin 5 is at (260, 265) bottom side -->
+  <path d="M 260 280 L 260 355 L 572 355 L 572 330" class="wire-sda"/>
+  <circle cx="260" cy="280" r="3" fill="#2e7d32"/>
+  <circle cx="572" cy="330" r="3" fill="#2e7d32"/>
+
+  <!-- ============================================================ -->
+  <!-- Wire legend -->
+  <!-- ============================================================ -->
+  <g transform="translate(100, 440)">
+    <text x="0" y="0" class="title" font-size="12">Wire colors:</text>
+    <!-- VCC -->
+    <line x1="0" y1="15" x2="30" y2="15" stroke="#e53935" stroke-width="3"/>
+    <text x="35" y="19" class="label">VCC (red)</text>
+    <!-- GND -->
+    <line x1="130" y1="15" x2="160" y2="15" stroke="#222" stroke-width="3"/>
+    <text x="165" y="19" class="label">GND (black)</text>
+    <!-- SCL -->
+    <line x1="270" y1="15" x2="300" y2="15" stroke="#1565c0" stroke-width="3"/>
+    <text x="305" y="19" class="label">SCL / PB2 (blue)</text>
+    <!-- SDA -->
+    <line x1="440" y1="15" x2="470" y2="15" stroke="#2e7d32" stroke-width="3"/>
+    <text x="475" y="19" class="label">SDA / PB0 (green)</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- Wiring table -->
+  <!-- ============================================================ -->
+  <g transform="translate(100, 475)">
+    <text x="0" y="0" class="label">ATtiny85 Pin 8 (VCC) → OLED VCC</text>
+    <text x="250" y="0" class="label">ATtiny85 Pin 4 (GND) → OLED GND</text>
+    <text x="0" y="18" class="label">ATtiny85 Pin 7 (PB2) → OLED SCL</text>
+    <text x="250" y="18" class="label">ATtiny85 Pin 5 (PB0) → OLED SDA</text>
+  </g>
+</svg>

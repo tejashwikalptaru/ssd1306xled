@@ -1,30 +1,73 @@
-# SSD1306XLED
+# ssd1306xled
 
-This library is the driver for SSD1306, SSD1315 and SSH1106 based OLED screens. The original implementation is from Neven Boyanov, Tinusaur Team.
+A lightweight driver for SSD1306, SSD1315, and SSH1106 OLED displays. Built for ATtiny85 and other memory-constrained AVR microcontrollers. Uses a custom I2C bit-banging implementation (based on [TinyI2C](https://github.com/technoblogy/tiny-i2c/)) instead of the Wire library, saving about 1 KB of flash.
 
-There were some compatibility issues with the I2C implementation of original `ssd1306xled` which I resolved by using the implementation from `TinyI2C` by David Johnson-Davies.
+Originally written by Neven Boyanov and the Tinusaur team.
 
-This library is tested on Attiny85 and some Chinese OLED screens based on these drivers.
+![demo](https://raw.githubusercontent.com/tejashwikalptaru/ssd1306xled/master/images/ssd1306xled.gif "ssd1306xled demo")
 
-### Connection
-| OLED     | Attiny85 |
-|----------|------|
-| vcc      | vcc  |
-| gnd      | gnd  |
-| scl      | pb2  |
-| sda      | pb0  |
+## Wiring (ATtiny85)
 
-![breadboard connection](images/breadboard.png?raw=true "Breadboard connection")
+| OLED | ATtiny85 |
+|------|----------|
+| VCC  | VCC      |
+| GND  | GND      |
+| SCL  | PB2      |
+| SDA  | PB0      |
 
-![schematic](images/schematic.png?raw=true "Schematic")
+![breadboard connection](https://raw.githubusercontent.com/tejashwikalptaru/ssd1306xled/master/images/breadboard.png "Breadboard connection")
 
-### Installation
-- PlatformIO: `pio lib install "ssd1306xled"` or [visit library page](https://platformio.org/lib/show/7105/ssd1306xled/installation)
-- Arduino IDE: open library manager (Tools > Manage library) and search for `ssd1306xled` and install
-- Manual: Download the latest release [here](https://github.com/tejashwikalptaru/ssd1306xled/releases)
+![schematic](https://raw.githubusercontent.com/tejashwikalptaru/ssd1306xled/master/images/schematic.png "Schematic")
 
-### How to use the code
-- Hello world code
+## Installation
+
+### PlatformIO
+
+```bash
+pio lib install "ssd1306xled"
+```
+
+Or add it to your `platformio.ini`:
+
+```ini
+lib_deps = ssd1306xled
+```
+
+You can also [browse the library on the PlatformIO registry](https://platformio.org/lib/show/7105/ssd1306xled/installation).
+
+### Arduino IDE
+
+Open **Tools > Manage Libraries**, search for `ssd1306xled`, and click Install.
+
+### Manual
+
+Download the latest `.zip` from the [releases page](https://github.com/tejashwikalptaru/ssd1306xled/releases).
+
+**For Arduino IDE:**
+
+Open **Sketch > Include Library > Add .ZIP Library** and select the downloaded file. Arduino will copy it into your libraries folder automatically.
+
+If you prefer doing it by hand, unzip and move the folder to your Arduino libraries directory (usually `~/Arduino/libraries/` on Linux/macOS or `Documents\Arduino\libraries\` on Windows). Restart the IDE afterward.
+
+**For PlatformIO:**
+
+Unzip the release into your project's `lib/` directory so the layout looks like this:
+
+```
+your_project/
+  lib/
+    ssd1306xled/
+      ssd1306xled.h
+      ssd1306xled.cpp
+      font6x8.h
+      font8x16.h
+      library.json
+```
+
+PlatformIO picks up anything inside `lib/` automatically -- no extra configuration needed.
+
+## Quick start
+
 ```c
 #include <Arduino.h>
 #include <ssd1306xled.h>
@@ -34,48 +77,45 @@ void setup() {
     SSD1306.ssd1306_init();
 }
 
-void run() {
+void loop() {
     SSD1306.ssd1306_fillscreen(0);
     SSD1306.ssd1306_setpos(0, 1);
     SSD1306.ssd1306_string_font6x8("Hello world!");
 }
 ```
 
-- Library functions
-    - `void ssd1306_init(void)`: initializes the screen
-    - `void ssd1306_tiny_init(void)`: initializes the screen without filling the screen with '0'
-    - `void ssd1306_send_data_start(void)`: put the communication with a screen in data mode
-    - `void ssd1306_send_data_stop(void)`: stops the communication 
-    - `void ssd1306_send_byte(uint8_t byte)`: send data byte to screen
-    - `void ssd1306_send_command_start(void)`: put the communication with a screen in command mode
-    - `void ssd1306_send_command_stop(void)`: stops the communication
-    - `void ssd1306_send_command(uint8_t command)`: send command byte to screen
-    - `void ssd1306_setpos(uint8_t x, uint8_t y)`: sets the cursor position at given coordinate
-    - `void ssd1306_fillscreen(uint8_t fill)`: fill the screen with given data (provide 0 as an argument to clear screen)
-    - `void ssd1306_char_font6x8(char ch)`: print a character with font size 6x8
-    - `void ssd1306_string_font6x8(char *s)`: print a given string with font size 6x8
-    - `void ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])`: print entire array with font size 8x16
-    - `void ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[])`: draws the bitmap to the screen
-    - `void ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])`: draws a bitmap at a pixel-level y position (`y_px` is 0–63 in pixels, not pages). The bitmap data is bit-shifted across page boundaries during transmission so no RAM buffer is needed. Note that this overwrites full 8-pixel page strips, so other content sharing those page rows will be erased.
-    - `void ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages)`: clears the area occupied by a pixel-positioned sprite. Call this before redrawing at a new position to avoid leaving ghost pixels behind.
+This clears the screen and prints "Hello world!" on the second row using the 6x8 font.
 
--  Special functions
-    - `void ssd1306_tiny_init_vertical(void)`: initializes the screen in vertical addressing mode. Please note that at the moment the vertical addressing mode is *not* compatible with any other library functions than basic data and command transfer!
+## Try it online
 
+You can run these demos in your browser without any hardware using the Wokwi simulator:
 
-### Contribution
-You can improve this library by your contribution. If you want to improve the code or have a fix for some issues with the library, please feel free to fork this library and submit a new pull request with your changes and description
+- **[SSD1306xLED demo](https://wokwi.com/projects/459998768896884737)** -- cycles through fill patterns, text rendering, and full-screen bitmaps on the OLED. A quick way to see what the library can do.
+- **[Fur Elise](https://wokwi.com/projects/460017438950831105)** -- plays Beethoven's Fur Elise on a piezo buzzer while showing note names and a pitch bar on the display. Fits in 2.5 KB of flash.
+- **[Pong](https://wokwi.com/projects/460018960161324033)** -- a playable Pong game. Drag the slide potentiometer to move your paddle, press the button to start. The AI is beatable. 3.1 KB of flash.
+- **[Digital Pet](https://wokwi.com/projects/460019535208925185)** -- a Tamagotchi-style virtual pet. Press the button to feed it, drag the potentiometer to play with it. Keep both bars up or it falls asleep. 3 KB of flash.
 
-### Credits
-This code is mainly written by Neven Boyanov, Tinusar team. I replaced their I2C implementation with the implementation by  David Johnson-Davies (TinyI2C).
+More examples (including three retro games) are in the [examples/](examples/) directory. See the [simulation guide](https://tejashwikalptaru.github.io/ssd1306xled/simulation.html) for running them locally with Wokwi.
 
-### Versions
-- v0.0.1 (March 08, 2020)
-    - initial release
-- v0.0.2 (July 07, 2024)
-    - added 'ssd1306_tiny_init()' to save flash memory if an initial screen fill is not required (~52 bytes shorter)
-- v0.0.3 (January 10, 2026)
-    - added 'ssd1306_tiny_init_vertical()' to initialize the screen for vertical addresing mode
+## Documentation
 
+Full API reference, architecture guide, feature flags, and examples are available on the documentation site:
 
+**[https://tejashwikalptaru.github.io/ssd1306xled/](https://tejashwikalptaru.github.io/ssd1306xled/)**
 
+## Changelog
+
+See [CHANGELOG.md](https://github.com/tejashwikalptaru/ssd1306xled/blob/master/CHANGELOG.md) for a complete version history.
+
+## Contributing
+
+Found a bug or want to add something? Fork the repo and open a pull request with your changes.
+
+## Credits
+
+- [Neven Boyanov / Tinusaur](https://bitbucket.org/tinusaur/ssd1306xled) -- original SSD1306 driver
+- [David Johnson-Davies / TinyI2C](https://github.com/technoblogy/tiny-i2c/) -- I2C implementation
+
+## License
+
+[MIT](LICENSE)

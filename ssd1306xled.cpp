@@ -1,17 +1,17 @@
-/*
- * SSD1306xLED - Drivers for SSD1306 controlled dot matrix OLED/PLED 128x64 displays
+/**
+ * @file ssd1306xled.cpp
+ * @brief SSD1306 OLED driver implementation.
  *
- * @created: 2014-08-12
- * @author: Neven Boyanov
+ * I2C is bit-banged through the ATtiny85 USI peripheral rather than using
+ * the Wire library. This saves about 1 KB of flash. The implementation is
+ * based on TinyI2C by David Johnson-Davies.
  *
- * Source code available at: https://bitbucket.org/tinusaur/ssd1306xled
- * 
- * Modified by Tejashwi Kalp Taru, with the help of TinyI2C (https://github.com/technoblogy/tiny-i2c/)
- * Modified code available at: https://github.com/tejashwikalptaru/ssd1306xled
+ * Display data goes straight to the SSD1306 over I2C -- there is no local
+ * framebuffer. This keeps RAM usage near zero but means every draw call is an
+ * I2C transaction, and the display cannot be read back (no read-modify-write).
  */
 
 // ----------------------------------------------------------------------------
-
 
 #include <stdlib.h>
 #include <avr/io.h>
@@ -19,205 +19,243 @@
 #include <avr/pgmspace.h>
 
 #include "ssd1306xled.h"
+
+#ifndef SSD1306_NO_FONT_6X8
 #include "font6x8.h"
+#endif
+
+#ifndef SSD1306_NO_FONT_8X16
 #include "font8x16.h"
+#endif
 
 // ----------------------------------------------------------------------------
 
-// Some code based on "IIC_wtihout_ACK" by http://www.14blog.com/archives/1358
+/** @cond INTERNAL */
 
-const uint8_t ssd1306_init_sequence [] PROGMEM = {	// Initialization Sequence
-	0xAE,			// Set Display ON/OFF - AE=OFF, AF=ON
-	0xD5, 0xF0,		// Set display clock divide ratio/oscillator frequency, set divide ratio
-	0xA8, 0x3F,		// Set multiplex ratio (1 to 64) ... (height - 1)
-	0xD3, 0x00,		// Set display offset. 00 = no offset
-	0x40 | 0x00,	// Set start line address, at 0.
-	0x8D, 0x14,		// Charge Pump Setting, 14h = Enable Charge Pump
-	0x20, 0x00,		// Set Memory Addressing Mode - 00=Horizontal, 01=Vertical, 10=Page, 11=Invalid
-	0xA0 | 0x01,	// Set Segment Re-map
-	0xC8,			// Set COM Output Scan Direction
-	0xDA, 0x12,		// Set COM Pins Hardware Configuration - 128x32:0x02, 128x64:0x12
-	0x81, 0x3F,		// Set contrast control register
-	0xD9, 0x22,		// Set pre-charge period (0x22 or 0xF1)
-	0xDB, 0x20,		// Set Vcomh Deselect Level - 0x00: 0.65 x VCC, 0x20: 0.77 x VCC (RESET), 0x30: 0.83 x VCC
-	0xA4,			// Entire Display ON (resume) - output RAM to display
-	0xA6,			// Set Normal/Inverse Display mode. A6=Normal; A7=Inverse
-	0x2E,			// Deactivate Scroll command
-	0xAF,			// Set Display ON/OFF - AE=OFF, AF=ON
+// Horizontal addressing mode init sequence.
+const uint8_t ssd1306_init_sequence [] PROGMEM = {
+	0xAE,			// Display OFF
+	0xD5, 0xF0,		// Clock divide ratio / oscillator frequency
+	0xA8, 0x3F,		// Multiplex ratio: 64 rows (0x3F = 63)
+	0xD3, 0x00,		// Display offset: none
+	0x40 | 0x00,	// Start line: row 0
+	0x8D, 0x14,		// Charge pump: enable
+	0x20, 0x00,		// Addressing mode: horizontal
+	0xA0 | 0x01,	// Segment remap: column 127 = SEG0
+	0xC8,			// COM scan: bottom to top
+	0xDA, 0x12,		// COM pins: 128x64 config
+	0x81, 0x3F,		// Contrast: default (range 0x00-0xFF)
+	0xD9, 0x22,		// Pre-charge period
+	0xDB, 0x20,		// VCOMH deselect: 0.77 x VCC
+	0xA4,			// Display from RAM (not all-on test mode)
+	0xA6,			// Normal display (not inverted)
+	0x2E,			// Deactivate scroll
+	0xAF,			// Display ON
 };
 
-const uint8_t ssd1306_init_sequence_vertical_addressing_mode [] PROGMEM = {	// Initialization Sequence for Vertical Addressing Mode
-	0xAE,			// Set Display ON/OFF - AE=OFF, AF=ON
-	0xD5, 0xF0,		// Set display clock divide ratio/oscillator frequency, set divide ratio
-	0xA8, 0x3F,		// Set multiplex ratio (1 to 64) ... (height - 1)
-	0xD3, 0x00,		// Set display offset. 00 = no offset
-	0x40 | 0x00,	// Set start line address, at 0.
-	0x8D, 0x14,		// Charge Pump Setting, 14h = Enable Charge Pump
-	0x20, 0x01,		// Set Memory Addressing Mode - 00=Horizontal, 01=Vertical, 10=Page, 11=Invalid
-	0x21, 0x00, 0x7f,		// Set Column Address - start address (0x00), end address (0x7f)
-	0xA0 | 0x01,	// Set Segment Re-map
-	0xC8,			// Set COM Output Scan Direction
-	0xDA, 0x12,		// Set COM Pins Hardware Configuration - 128x32:0x02, 128x64:0x12
-	0x81, 0x3F,		// Set contrast control register
-	0xD9, 0x22,		// Set pre-charge period (0x22 or 0xF1)
-	0xDB, 0x20,		// Set Vcomh Deselect Level - 0x00: 0.65 x VCC, 0x20: 0.77 x VCC (RESET), 0x30: 0.83 x VCC
-	0xA4,			// Entire Display ON (resume) - output RAM to display
-	0xA6,			// Set Normal/Inverse Display mode. A6=Normal; A7=Inverse
-	0x2E,			// Deactivate Scroll command
-	0xAF,			// Set Display ON/OFF - AE=OFF, AF=ON
+// Vertical addressing mode init sequence.
+const uint8_t ssd1306_init_sequence_vertical_addressing_mode [] PROGMEM = {
+	0xAE,
+	0xD5, 0xF0,
+	0xA8, 0x3F,
+	0xD3, 0x00,
+	0x40 | 0x00,
+	0x8D, 0x14,
+	0x20, 0x01,		// Addressing mode: vertical
+	0x21, 0x00, 0x7f,	// Column address range: 0-127
+	0xA0 | 0x01,
+	0xC8,
+	0xDA, 0x12,
+	0x81, 0x3F,
+	0xD9, 0x22,
+	0xDB, 0x20,
+	0xA4,
+	0xA6,
+	0x2E,
+	0xAF,
 };
-
-// Program:    5248 bytes
+/** @endcond */
 
 SSD1306Device::SSD1306Device(void){}
 
+// ----------------------------------------------------------------------------
+// I2C bit-banging via USI
+// ----------------------------------------------------------------------------
+
+/**
+ * @internal
+ * Configure USI for two-wire (I2C) mode. Enables pull-ups on SDA and SCL,
+ * sets both as outputs, and preloads the data register with 0xFF (idle state).
+ */
 void SSD1306Device::I2CInit() {
-	PORT_USI |= 1<<PIN_USI_SDA;                 // Enable pullup on SDA.
-	PORT_USI_CL |= 1<<PIN_USI_SCL;              // Enable pullup on SCL.
+	PORT_USI |= 1<<PIN_USI_SDA;
+	PORT_USI_CL |= 1<<PIN_USI_SCL;
 
-	DDR_USI_CL |= 1<<PIN_USI_SCL;               // Enable SCL as output.
-	DDR_USI |= 1<<PIN_USI_SDA;                  // Enable SDA as output.
+	DDR_USI_CL |= 1<<PIN_USI_SCL;
+	DDR_USI |= 1<<PIN_USI_SDA;
 
-	USIDR = 0xFF;                               // Preload data register with "released level" data.
-	USICR = 0<<USISIE | 0<<USIOIE |             // Disable Interrupts.
-			1<<USIWM1 | 0<<USIWM0 |             // Set USI in Two-wire mode.
-			1<<USICS1 | 0<<USICS0 | 1<<USICLK | // Software stobe as counter clock source
+	USIDR = 0xFF;
+	USICR = 0<<USISIE | 0<<USIOIE |
+			1<<USIWM1 | 0<<USIWM0 |
+			1<<USICS1 | 0<<USICS0 | 1<<USICLK |
 			0<<USITC;
-	USISR = 1<<USISIF | 1<<USIOIF | 1<<USIPF | 1<<USIDC | // Clear flags,
-			0x0<<USICNT0;                       // and reset counter.
+	USISR = 1<<USISIF | 1<<USIOIF | 1<<USIPF | 1<<USIDC |
+			0x0<<USICNT0;
 }
 
-bool SSD1306Device::I2CStart(uint8_t address, int readcount) {
-	if (readcount != 0) { I2Ccount = readcount; readcount = 1; }
-	uint8_t addressRW = address<<1 | readcount;
+/**
+ * @internal
+ * Send I2C START condition and the slave address (write mode).
+ * @param address 7-bit I2C address (shifted left internally).
+ * @return true if the slave ACK'd, false on timeout or NACK.
+ */
+bool SSD1306Device::I2CStart(uint8_t address) {
+	uint8_t addressRW = address << 1;
 
-	/* Release SCL to ensure that (repeated) Start can be performed */
-	PORT_USI_CL |= 1<<PIN_USI_SCL;              // Release SCL.
-	while (!(PIN_USI_CL & 1<<PIN_USI_SCL));     // Verify that SCL becomes high.
+	// Release SCL so a (repeated) START can be performed
+	PORT_USI_CL |= 1<<PIN_USI_SCL;
+	while (!(PIN_USI_CL & 1<<PIN_USI_SCL));
 	#ifdef TWI_FAST_MODE
 	DELAY_T4TWI;
 	#else
 	DELAY_T2TWI;
 	#endif
 
-	/* Generate Start Condition */
-	PORT_USI &= ~(1<<PIN_USI_SDA);              // Force SDA LOW.
+	// Generate START: SDA goes low while SCL is high
+	PORT_USI &= ~(1<<PIN_USI_SDA);
 	DELAY_T4TWI;
-	PORT_USI_CL &= ~(1<<PIN_USI_SCL);           // Pull SCL LOW.
-	PORT_USI |= 1<<PIN_USI_SDA;                 // Release SDA.
+	PORT_USI_CL &= ~(1<<PIN_USI_SCL);
+	PORT_USI |= 1<<PIN_USI_SDA;
 
 	if (!(USISR & 1<<USISIF)) return false;
 
-	/*Write address */
-	PORT_USI_CL &= ~(1<<PIN_USI_SCL);           // Pull SCL LOW.
-	USIDR = addressRW;                          // Setup data.
-	I2CTransfer(USISR_8bit);                 // Send 8 bits on bus.
+	// Send address byte
+	PORT_USI_CL &= ~(1<<PIN_USI_SCL);
+	USIDR = addressRW;
+	I2CTransfer(USISR_8bit);
 
-	/* Clock and verify (N)ACK from slave */
-	DDR_USI &= ~(1<<PIN_USI_SDA);               // Enable SDA as input.
-	if (I2CTransfer(USISR_1bit) & 1<<TWI_NACK_BIT) return false; // No ACK
+	// Check ACK
+	DDR_USI &= ~(1<<PIN_USI_SDA);
+	if (I2CTransfer(USISR_1bit) & 1<<TWI_NACK_BIT) return false;
 
-	return true;                                // Start successfully completed
+	return true;
 }
 
+/**
+ * @internal
+ * Clock bits through USI. The data parameter is loaded into USISR to control
+ * how many bits to shift (8 for data, 1 for ACK).
+ */
 uint8_t SSD1306Device::I2CTransfer (uint8_t data) {
-  USISR = data;                               // Set USISR according to data.
-                                              // Prepare clocking.
-  data = 0<<USISIE | 0<<USIOIE |              // Interrupts disabled
-         1<<USIWM1 | 0<<USIWM0 |              // Set USI in Two-wire mode.
-         1<<USICS1 | 0<<USICS0 | 1<<USICLK |  // Software clock strobe as source.
-         1<<USITC;                            // Toggle Clock Port.
+  USISR = data;
+  data = 0<<USISIE | 0<<USIOIE |
+         1<<USIWM1 | 0<<USIWM0 |
+         1<<USICS1 | 0<<USICS0 | 1<<USICLK |
+         1<<USITC;
   do {
     DELAY_T2TWI;
-    USICR = data;                             // Generate positive SCL edge.
-    while (!(PIN_USI_CL & 1<<PIN_USI_SCL));   // Wait for SCL to go high.
+    USICR = data;                             // Positive SCL edge
+    while (!(PIN_USI_CL & 1<<PIN_USI_SCL));   // Wait for SCL high
     DELAY_T4TWI;
-    USICR = data;                             // Generate negative SCL edge.
-  } while (!(USISR & 1<<USIOIF));             // Check for transfer complete.
+    USICR = data;                             // Negative SCL edge
+  } while (!(USISR & 1<<USIOIF));
 
   DELAY_T2TWI;
-  data = USIDR;                               // Read out data.
-  USIDR = 0xFF;                               // Release SDA.
-  DDR_USI |= (1<<PIN_USI_SDA);                // Enable SDA as output.
+  data = USIDR;
+  USIDR = 0xFF;                               // Release SDA
+  DDR_USI |= (1<<PIN_USI_SDA);
 
-  return data;                                // Return the data from the USIDR
+  return data;
 }
 
+/** @internal Generate I2C STOP condition. */
 void SSD1306Device::I2CStop (void) {
-  PORT_USI &= ~(1<<PIN_USI_SDA);              // Pull SDA low.
-  PORT_USI_CL |= 1<<PIN_USI_SCL;              // Release SCL.
-  while (!(PIN_USI_CL & 1<<PIN_USI_SCL));     // Wait for SCL to go high.
+  PORT_USI &= ~(1<<PIN_USI_SDA);              // Pull SDA low
+  PORT_USI_CL |= 1<<PIN_USI_SCL;              // Release SCL
+  while (!(PIN_USI_CL & 1<<PIN_USI_SCL));
   DELAY_T4TWI;
-  PORT_USI |= 1<<PIN_USI_SDA;                 // Release SDA.
+  PORT_USI |= 1<<PIN_USI_SDA;                 // Release SDA
   DELAY_T2TWI;
 }
 
+/**
+ * @internal
+ * Initialize I2C and verify the display is reachable by retrying I2CStart
+ * until it ACKs. Skipped if SSD1306_QUICK_BEGIN is defined.
+ */
 void SSD1306Device::begin() {
 	I2CInit();
-#ifndef TINY4KOLED_QUICK_BEGIN
-	while (!I2CStart(SSD1306_SA, 0)) {
+#ifndef SSD1306_QUICK_BEGIN
+	while (!I2CStart(SSD1306_SA)) {
 		delay(10);
 	}
 	I2CStop();
 #endif
 }
 
+/**
+ * @internal
+ * Write one byte to the I2C bus and check for ACK.
+ * @return true if slave ACK'd.
+ */
 bool SSD1306Device::I2CWrite(uint8_t data)  {
-	/* Write a byte */
-  PORT_USI_CL &= ~(1<<PIN_USI_SCL);           // Pull SCL LOW.
-  USIDR = data;                               // Setup data.
-  I2CTransfer(USISR_8bit);                 // Send 8 bits on bus.
+  PORT_USI_CL &= ~(1<<PIN_USI_SCL);
+  USIDR = data;
+  I2CTransfer(USISR_8bit);
 
-  /* Clock and verify (N)ACK from slave */
-  DDR_USI &= ~(1<<PIN_USI_SDA);               // Enable SDA as input.
+  DDR_USI &= ~(1<<PIN_USI_SDA);
   if (I2CTransfer(USISR_1bit) & 1<<TWI_NACK_BIT) return false;
 
   return true;
 }
 
-void SSD1306Device::ssd1306_init(void)
-{
+// --- Shared internal helpers ---
+
+/**
+ * @internal
+ * Start an I2C transaction to the display in the given mode (command or data).
+ * Stops any previous transaction first.
+ */
+void SSD1306Device::_ssd1306_start(uint8_t mode) {
+	I2CStop();
+	I2CStart(SSD1306_SA);
+	I2CWrite(mode);
+}
+
+/**
+ * @internal
+ * Send an init sequence from PROGMEM. Used by all three init functions to
+ * avoid duplicating the command-send loop.
+ */
+void SSD1306Device::_ssd1306_init_from(const uint8_t *seq, uint8_t len) {
 	begin();
 	ssd1306_send_command_start();
-	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence); i++) {
-		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence[i]));
+	for (uint8_t i = 0; i < len; i++) {
+		ssd1306_send_byte(pgm_read_byte(&seq[i]));
 	}
 	ssd1306_send_command_stop();
+}
+
+// --- Public API ---
+
+void SSD1306Device::ssd1306_init(void)
+{
+	_ssd1306_init_from(ssd1306_init_sequence, sizeof(ssd1306_init_sequence));
 	ssd1306_fillscreen(0);
 }
 
-// A shorter init saves 52 flash bytes (if zeroed screen is not required)
-// The code of 'ssd1306_init()' is replicated to allow the linker to drop the unused method during linkage.
 void SSD1306Device::ssd1306_tiny_init(void)
 {
-	begin();
-	ssd1306_send_command_start();
-	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence); i++) {
-		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence[i]));
-	}
-	ssd1306_send_command_stop();
-	// save 52 bytes :)
-	//ssd1306_fillscreen(0);
+	_ssd1306_init_from(ssd1306_init_sequence, sizeof(ssd1306_init_sequence));
 }
 
-// An alternate version of 'ssd1306_tiny_init()' which enables the vertical addressing mode.
-// The code of 'ssd1306_tiny_init()' is replicated to allow the linker to drop the unused method during linkage.
 void SSD1306Device::ssd1306_tiny_init_vertical(void)
 {
-	begin();
-	ssd1306_send_command_start();
-	for (uint8_t i = 0; i < sizeof (ssd1306_init_sequence_vertical_addressing_mode); i++) {
-		ssd1306_send_byte(pgm_read_byte(&ssd1306_init_sequence_vertical_addressing_mode[i]));
-	}
-	ssd1306_send_command_stop();
-	// save 52 bytes :)
-	//ssd1306_fillscreen(0);
+	_ssd1306_init_from(ssd1306_init_sequence_vertical_addressing_mode, sizeof(ssd1306_init_sequence_vertical_addressing_mode));
 }
 
 void SSD1306Device::ssd1306_send_command_start(void) {
-	I2CStop();
-	I2CStart(SSD1306_SA, 0);
-	I2CWrite(SSD1306_COMMAND);
+	_ssd1306_start(SSD1306_COMMAND);
 }
 
 void SSD1306Device::ssd1306_send_command_stop() {
@@ -235,9 +273,7 @@ void SSD1306Device::ssd1306_send_byte(uint8_t byte) {
 }
 
 void SSD1306Device::ssd1306_send_data_start(void) {
-	I2CStop();
-	I2CStart(SSD1306_SA, 0);
-	I2CWrite(SSD1306_DATA);
+	_ssd1306_start(SSD1306_DATA);
 }
 
 void SSD1306Device::ssd1306_send_data_stop() {
@@ -246,27 +282,41 @@ void SSD1306Device::ssd1306_send_data_stop() {
 
 void SSD1306Device::ssd1306_fillscreen(uint8_t fill) {
 	ssd1306_setpos(0, 0);
-	ssd1306_send_data_start();	// Initiate transmission of data
-	for (uint16_t i = 0; i < 128 * 8 / 4; i++) {
-		ssd1306_send_byte(fill);
-		ssd1306_send_byte(fill);
-		ssd1306_send_byte(fill);
+	ssd1306_send_data_start();
+	for (uint16_t i = 0; i < 128 * 8; i++) {
 		ssd1306_send_byte(fill);
 	}
-	ssd1306_send_data_stop();	// Finish transmission
+	ssd1306_send_data_stop();
+}
+
+void SSD1306Device::ssd1306_set_contrast(uint8_t value) {
+	ssd1306_send_command_start();
+	ssd1306_send_byte(0x81);
+	ssd1306_send_byte(value);
+	ssd1306_send_command_stop();
+}
+
+void SSD1306Device::ssd1306_display_off(void) {
+	ssd1306_send_command(0xAE);
+}
+
+void SSD1306Device::ssd1306_display_on(void) {
+	ssd1306_send_command(0xAF);
 }
 
 void SSD1306Device::ssd1306_setpos(uint8_t x, uint8_t y)
 {
 	ssd1306_send_command_start();
-	ssd1306_send_byte(0xb0 | (y & 0x07));
-	ssd1306_send_byte(0x10 | ((x & 0xf0) >> 4));
-	ssd1306_send_byte(x & 0x0f); // | 0x01
+	ssd1306_send_byte(0xb0 | (y & 0x07));         // Page address
+	ssd1306_send_byte(0x10 | ((x & 0xf0) >> 4));  // Column high nibble
+	ssd1306_send_byte(x & 0x0f);                   // Column low nibble
 	ssd1306_send_command_stop();
 }
 
+#ifndef SSD1306_NO_FONT_6X8
+
 void SSD1306Device::ssd1306_char_font6x8(char ch) {
-	uint8_t i; 
+	uint8_t i;
 	uint8_t c = ch - 32;
 	ssd1306_send_data_start();
 	for (i= 0; i < 6; i++)
@@ -276,17 +326,25 @@ void SSD1306Device::ssd1306_char_font6x8(char ch) {
 	ssd1306_send_data_stop();
 }
 
-void SSD1306Device::ssd1306_string_font6x8(char *s) {
+void SSD1306Device::ssd1306_string_font6x8(const char *s) {
+	ssd1306_send_data_start();
 	while (*s) {
-		ssd1306_char_font6x8(*s++);
+		uint8_t c = *s++ - 32;
+		for (uint8_t i = 0; i < 6; i++)
+		{
+			ssd1306_send_byte(pgm_read_byte(&ssd1306xled_font6x8[c * 6 + i]));
+		}
 	}
+	ssd1306_send_data_stop();
 }
+
+#endif // SSD1306_NO_FONT_6X8
+
+#ifndef SSD1306_NO_DRAW_BMP
 
 void SSD1306Device::ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, const uint8_t bitmap[]){
 	uint16_t j = 0;
 	uint8_t y, x;
-	if (y1 % 8 == 0) y = y1 / 8;
-	else y = y1 / 8 + 1;
 	for (y = y0; y < y1; y++)
 	{
 		ssd1306_setpos(x0,y);
@@ -299,16 +357,20 @@ void SSD1306Device::ssd1306_draw_bmp(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t
 	}
 }
 
-void SSD1306Device::ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])
+#endif // SSD1306_NO_DRAW_BMP
+
+#ifndef SSD1306_NO_FONT_8X16
+
+void SSD1306Device::ssd1306_string_f8x16(uint8_t x, uint8_t y, const char s[])
 {
-	uint8_t c, j, i = 0;
-	while (ch[j] != '\0')
+	uint8_t c, i = 0;
+	while (*s)
 	{
-		c = ch[j] - 32;
+		c = *s++ - 32;
 		if (x > 120)
 		{
 			x = 0;
-			y++;
+			y += 2;
 		}
 		ssd1306_setpos(x, y);
 		ssd1306_send_data_start();
@@ -325,19 +387,26 @@ void SSD1306Device::ssd1306_char_f8x16(uint8_t x, uint8_t y, const char ch[])
 		}
 		ssd1306_send_data_stop();
 		x += 8;
-		j++;
 	}
 }
 
+#endif // SSD1306_NO_FONT_8X16
 
 
-// Draw bitmap at pixel-level y position (not page-aligned).
-// y_px is in pixels (0-63). The sprite is bit-shifted across page boundaries.
-// Note: overwrites all 8 vertical pixels in each affected page row — other
-// content sharing those page strips will be erased. SSD1306 I2C does not
-// support read-modify-write, so existing page content cannot be preserved.
+// Pixel-level bitmap drawing.
+// The bit-shift algorithm: for a sprite at y_px that doesn't land on a page
+// boundary (offset != 0), each display page gets bits from two adjacent bitmap
+// rows. The previous row's bits shift right by (8 - offset) into the upper
+// portion, and the current row's bits shift left by offset into the lower
+// portion, then OR together. This lets a sprite sit at any vertical pixel
+// position without needing a framebuffer.
 void SSD1306Device::ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])
 {
+	if (x >= 128) return;
+	uint8_t draw_w = w;
+	uint8_t max_w = 128 - x;
+	if (draw_w > max_w) draw_w = max_w;
+
 	uint8_t page_start = y_px >> 3;
 	uint8_t offset = y_px & 0x07;
 	uint8_t total_pages = h_pages + (offset ? 1 : 0);
@@ -350,7 +419,7 @@ void SSD1306Device::ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint
 		ssd1306_setpos(x, dp);
 		ssd1306_send_data_start();
 
-		for (uint8_t c = 0; c < w; c++)
+		for (uint8_t c = 0; c < draw_w; c++)
 		{
 			uint8_t out = 0;
 
@@ -372,10 +441,12 @@ void SSD1306Device::ssd1306_draw_bmp_px(uint8_t x, uint8_t y_px, uint8_t w, uint
 	}
 }
 
-// Clear the area that a pixel-positioned sprite occupies.
-// Writes zeros to all pages the sprite would touch at the given y_px.
 void SSD1306Device::ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, uint8_t h_pages)
 {
+	if (x >= 128) return;
+	uint8_t max_w = 128 - x;
+	if (w > max_w) w = max_w;
+
 	uint8_t page_start = y_px >> 3;
 	uint8_t offset = y_px & 0x07;
 	uint8_t total_pages = h_pages + (offset ? 1 : 0);
@@ -391,6 +462,147 @@ void SSD1306Device::ssd1306_clear_area_px(uint8_t x, uint8_t y_px, uint8_t w, ui
 		ssd1306_send_data_stop();
 	}
 }
+
+// --- Signed X clipping support ---
+
+void SSD1306Device::ssd1306_draw_bmp_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages, const uint8_t bitmap[])
+{
+	uint8_t col_offset = 0;
+
+	if (x >= 128 || x + (int16_t)w <= 0) return;
+
+	if (x < 0) {
+		col_offset = (uint8_t)(-x);
+		w -= col_offset;
+		x = 0;
+	}
+
+	// orig_w: the real bitmap row stride (before right-side clipping)
+	uint8_t orig_w = w + col_offset;
+
+	if (x + w > 128) w = 128 - (uint8_t)x;
+
+	uint8_t ux = (uint8_t)x;
+	uint8_t page_start = y_px >> 3;
+	uint8_t offset = y_px & 0x07;
+	uint8_t total_pages = h_pages + (offset ? 1 : 0);
+
+	for (uint8_t rp = 0; rp < total_pages; rp++)
+	{
+		uint8_t dp = page_start + rp;
+		if (dp > 7) break;
+
+		ssd1306_setpos(ux, dp);
+		ssd1306_send_data_start();
+
+		for (uint8_t c = 0; c < w; c++)
+		{
+			uint8_t sc = c + col_offset;
+			uint8_t out = 0;
+
+			if (offset == 0)
+			{
+				out = pgm_read_byte(&bitmap[rp * orig_w + sc]);
+			}
+			else
+			{
+				if (rp > 0)
+					out = pgm_read_byte(&bitmap[(rp - 1) * orig_w + sc]) >> (8 - offset);
+				if (rp < h_pages)
+					out |= pgm_read_byte(&bitmap[rp * orig_w + sc]) << offset;
+			}
+
+			ssd1306_send_byte(out);
+		}
+		ssd1306_send_data_stop();
+	}
+}
+
+void SSD1306Device::ssd1306_clear_area_px_clipped(int16_t x, uint8_t y_px, uint8_t w, uint8_t h_pages)
+{
+	if (x >= 128 || x + (int16_t)w <= 0) return;
+
+	if (x < 0) {
+		uint8_t clip = (uint8_t)(-x);
+		w -= clip;
+		x = 0;
+	}
+
+	if (x + w > 128) w = 128 - (uint8_t)x;
+
+	uint8_t ux = (uint8_t)x;
+	uint8_t page_start = y_px >> 3;
+	uint8_t offset = y_px & 0x07;
+	uint8_t total_pages = h_pages + (offset ? 1 : 0);
+
+	for (uint8_t rp = 0; rp < total_pages; rp++)
+	{
+		uint8_t dp = page_start + rp;
+		if (dp > 7) break;
+		ssd1306_setpos(ux, dp);
+		ssd1306_send_data_start();
+		for (uint8_t c = 0; c < w; c++)
+			ssd1306_send_byte(0x00);
+		ssd1306_send_data_stop();
+	}
+}
+
+
+
+// --- Page compositing support ---
+
+void SSD1306Device::ssd1306_compose_bmp_px(uint8_t *buf, uint8_t buf_x, uint8_t buf_w,
+	int16_t sprite_x, uint8_t sprite_y_px,
+	uint8_t sprite_w, uint8_t sprite_h_pages,
+	const uint8_t bitmap[], uint8_t target_page)
+{
+	uint8_t page_start = sprite_y_px >> 3;
+	uint8_t offset = sprite_y_px & 0x07;
+	uint8_t total_pages = sprite_h_pages + (offset ? 1 : 0);
+
+	if (target_page < page_start || target_page >= page_start + total_pages) return;
+
+	uint8_t rp = target_page - page_start;
+
+	for (uint8_t c = 0; c < sprite_w; c++)
+	{
+		int16_t disp_col = sprite_x + c;
+		if (disp_col < (int16_t)buf_x || disp_col >= (int16_t)(buf_x + buf_w)) continue;
+		if (disp_col < 0 || disp_col >= 128) continue;
+		uint8_t buf_idx = (uint8_t)disp_col - buf_x;
+
+		uint8_t out = 0;
+
+		if (offset == 0)
+		{
+			out = pgm_read_byte(&bitmap[rp * sprite_w + c]);
+		}
+		else
+		{
+			if (rp > 0)
+				out = pgm_read_byte(&bitmap[(rp - 1) * sprite_w + c]) >> (8 - offset);
+			if (rp < sprite_h_pages)
+				out |= pgm_read_byte(&bitmap[rp * sprite_w + c]) << offset;
+		}
+
+		buf[buf_idx] |= out;
+	}
+}
+
+void SSD1306Device::ssd1306_send_buf(uint8_t x, uint8_t page, const uint8_t *buf, uint8_t w)
+{
+	if (x >= 128) return;
+	uint8_t max_w = 128 - x;
+	if (w > max_w) w = max_w;
+
+	ssd1306_setpos(x, page);
+	ssd1306_send_data_start();
+	for (uint8_t c = 0; c < w; c++)
+		ssd1306_send_byte(buf[c]);
+	ssd1306_send_data_stop();
+}
+
+
 
 SSD1306Device SSD1306;
 

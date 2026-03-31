@@ -8,10 +8,18 @@ on:
       - '**.cpp'
       - '**.h'
       - '**.ino'
+      - '**.md'
       - 'library.json'
       - 'library.properties'
       - 'examples/**'
+      - 'docs/**'
+      - 'Doxyfile'
       - '.github/workflows/**'
+      - 'simulation/**'
+
+permissions:
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -143,6 +151,12 @@ jobs:
       matrix:
         example:
           - OLED_demo
+          - sprite_overlap_fix
+          - invaders_fix
+          - tiny_gilbert
+          - tiny_space_invaders
+          - tiny_bomber
+          - fur_elise
 
     steps:
       - name: Checkout code
@@ -182,9 +196,8 @@ jobs:
           # Copy library files
           cp *.cpp *.h *.json test_build/lib/ssd1306xled/
 
-          # Copy example files and rename .ino to main.cpp
-          cp $EXAMPLE_DIR/* test_build/src/
-          mv test_build/src/$EXAMPLE_INO test_build/src/main.cpp
+          # Copy example files (keep .ino so PlatformIO generates function prototypes)
+          cp $EXAMPLE_DIR/*.ino $EXAMPLE_DIR/*.h test_build/src/ 2>/dev/null || cp $EXAMPLE_DIR/*.ino test_build/src/
 
           # Create platformio.ini
           cat > test_build/platformio.ini << 'EOF'
@@ -199,3 +212,78 @@ jobs:
           pio run --environment attiny85
 
           echo "Example ${{ matrix.example }} compiled successfully!"
+
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+
+      - name: Build documentation
+        run: |
+          doxygen Doxyfile 2>&1 | tee doxygen-output.log
+          if grep -q "warning:" doxygen-output.log; then
+            echo ""
+            echo "::warning::Doxygen produced warnings (see above)"
+          fi
+          if [ ! -f docs/html/index.html ]; then
+            echo "::error::Doxygen did not produce docs/html/index.html"
+            exit 1
+          fi
+          echo "Documentation built successfully!"
+
+      - name: Deploy docs preview
+        uses: rajyan/preview-pages@v1
+        with:
+          source-dir: docs/html
+
+  wokwi-simulation:
+    name: Wokwi Simulation Test
+    runs-on: ubuntu-latest
+    needs: [compile-examples]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: ${{ runner.os }}-pio-wokwi-${{ hashFiles('**/library.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-wokwi-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO Core
+        run: |
+          pip install --upgrade pip
+          pip install platformio
+
+      - name: Build firmware
+        working-directory: simulation
+        run: |
+          ln -s ../examples/OLED_demo src
+          pio run --environment attiny85
+
+      - name: Install Wokwi CLI
+        run: curl -L https://wokwi.com/ci/install.sh | sh
+
+      - name: Run Wokwi simulation
+        env:
+          WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+        working-directory: simulation
+        run: wokwi-cli --timeout 10000 --timeout-exit-code 0

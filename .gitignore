@@ -1,1 +1,4 @@
 .idea
+docs/html/
+simulation/.pio/
+simulation/src
