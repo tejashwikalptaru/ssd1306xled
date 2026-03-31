@@ -92,8 +92,10 @@ You can run these demos in your browser without any hardware using the Wokwi sim
 
 - **[SSD1306xLED demo](https://wokwi.com/projects/459998768896884737)** -- cycles through fill patterns, text rendering, and full-screen bitmaps on the OLED. A quick way to see what the library can do.
 - **[Fur Elise](https://wokwi.com/projects/460017438950831105)** -- plays Beethoven's Fur Elise on a piezo buzzer while showing note names and a pitch bar on the display. Fits in 2.5 KB of flash.
+- **[Pong](https://wokwi.com/projects/460018960161324033)** -- a playable Pong game. Drag the slide potentiometer to move your paddle, press the button to start. The AI is beatable. 3.1 KB of flash.
+- **[Digital Pet](https://wokwi.com/projects/460019535208925185)** -- a Tamagotchi-style virtual pet. Press the button to feed it, drag the potentiometer to play with it. Keep both bars up or it falls asleep. 3 KB of flash.
 
-More examples (including three games) are in the [examples/](examples/) directory. See the [simulation guide](https://tejashwikalptaru.github.io/ssd1306xled/simulation.html) for running them locally with Wokwi.
+More examples (including three retro games) are in the [examples/](examples/) directory. See the [simulation guide](https://tejashwikalptaru.github.io/ssd1306xled/simulation.html) for running them locally with Wokwi.
 
 ## Documentation
 
