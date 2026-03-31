@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" font-family="Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 510" font-family="Arial, sans-serif">
   <defs>
     <style>
       .label { font-size: 11px; fill: #333; }
@@ -182,10 +182,10 @@
   <!-- ============================================================ -->
   <!-- Wiring table -->
   <!-- ============================================================ -->
-  <g transform="translate(100, 480)">
+  <g transform="translate(100, 475)">
     <text x="0" y="0" class="label">ATtiny85 Pin 8 (VCC) → OLED VCC</text>
     <text x="250" y="0" class="label">ATtiny85 Pin 4 (GND) → OLED GND</text>
-    <text x="500" y="0" class="label">Pin 7 (PB2) → SCL</text>
-    <text x="630" y="0" class="label">Pin 5 (PB0) → SDA</text>
+    <text x="0" y="18" class="label">ATtiny85 Pin 7 (PB2) → OLED SCL</text>
+    <text x="250" y="18" class="label">ATtiny85 Pin 5 (PB0) → OLED SDA</text>
   </g>
 </svg>
