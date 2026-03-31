@@ -1,5 +1,0 @@
-/* Limit inline images on the main page so wiring diagrams don't dominate */
-.contents img {
-    max-height: 300px;
-    width: auto;
-}

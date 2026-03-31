@@ -1,9 +1,0 @@
-<map id="ssd1306xled.h" name="ssd1306xled.h">
-<area shape="rect" id="Node000001" title="Driver for SSD1306, SSD1315, and SSH1106 OLED displays." alt="" coords="84,5,200,31"/>
-<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,76,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="127,33,70,73,67,68,124,28"/>
-<area shape="rect" id="Node000003" title=" " alt="" coords="100,79,184,104"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="145,31,145,65,139,65,139,31"/>
-<area shape="rect" id="Node000004" title=" " alt="" coords="209,79,302,104"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="162,28,227,69,224,74,159,33"/>
-</map>
