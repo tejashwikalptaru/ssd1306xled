@@ -141,24 +141,22 @@ static const uint8_t melody[] PROGMEM = {
 
 static void play_tone(uint16_t freq, uint16_t duration_ms) {
   if (freq == 0) {
-    _delay_ms(1);
-    // Rest: just wait
     for (uint16_t i = 0; i < duration_ms; i++)
       _delay_ms(1);
     return;
   }
 
-  // Half-period in microseconds
+  // Use delayMicroseconds() for accurate variable-length delays.
+  // Unlike a _delay_us(1) loop, this is a single calibrated call
+  // per half-period with no per-iteration overhead.
   uint16_t half_period = 500000UL / freq;
   uint16_t cycles = ((uint32_t)freq * duration_ms) / 1000;
 
   for (uint16_t i = 0; i < cycles; i++) {
     PORTB |= (1 << BUZZER_PIN);
-    for (uint16_t j = 0; j < half_period; j++)
-      _delay_us(1);
+    delayMicroseconds(half_period);
     PORTB &= ~(1 << BUZZER_PIN);
-    for (uint16_t j = 0; j < half_period; j++)
-      _delay_us(1);
+    delayMicroseconds(half_period);
   }
 }
 
@@ -167,7 +165,7 @@ static void play_tone(uint16_t freq, uint16_t duration_ms) {
 // ---------------------------------------------------------------------------
 
 // Keep a rolling buffer of the last 10 note indices for display
-#define HISTORY_LEN 10
+#define HISTORY_LEN 6
 static uint8_t history[HISTORY_LEN];
 static uint8_t hist_pos;
 
@@ -203,15 +201,26 @@ static void display_note(uint8_t note_idx) {
 
   // Clear bar area
   SSD1306.ssd1306_setpos(0, 5);
+  SSD1306.ssd1306_send_data_start();
   for (uint8_t i = 0; i < 128; i++)
     SSD1306.ssd1306_send_byte(0);
+  SSD1306.ssd1306_send_data_stop();
 
   // Draw bar
   SSD1306.ssd1306_setpos(4, 5);
+  SSD1306.ssd1306_send_data_start();
   for (uint8_t i = 0; i < bar_w; i++)
     SSD1306.ssd1306_send_byte(0x3C);
+  SSD1306.ssd1306_send_data_stop();
 
   // Scrolling history on bottom row (page 7)
+  // Clear page 7 first to avoid wrap-around artifacts
+  SSD1306.ssd1306_setpos(0, 7);
+  SSD1306.ssd1306_send_data_start();
+  for (uint8_t i = 0; i < 128; i++)
+    SSD1306.ssd1306_send_byte(0);
+  SSD1306.ssd1306_send_data_stop();
+
   SSD1306.ssd1306_setpos(4, 7);
   for (uint8_t i = 0; i < HISTORY_LEN; i++) {
     uint8_t idx = (hist_pos + i) % HISTORY_LEN;

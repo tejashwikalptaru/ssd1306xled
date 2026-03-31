@@ -16,7 +16,7 @@
       "id": "bz1",
       "top": -141.6,
       "left": -132.6,
-      "attrs": { "mode": "accurate", "volume": "0.5" }
+      "attrs": { "mode": "smooth", "volume": "0.5" }
     }
   ],
   "connections": [
