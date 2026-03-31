@@ -5,6 +5,8 @@
 The demo sketch in `examples/OLED_demo/` runs through the main library
 features. Each section is labeled on-screen so you can tell what's happening.
 
+@image html oled-demo.gif "OLED_demo running in the Wokwi simulator"
+
 ### Setup {#demo_setup}
 
 ```c
@@ -94,6 +96,90 @@ SSD1306.ssd1306_send_buf(20, 3, buf, 8);
 
 Both sprites' bits for page 3 are OR'd into the buffer, then sent in one
 write. Both sprites appear correctly this time.
+
+## sprite_overlap_fix.ino {#sprite_overlap_fix}
+
+This example reproduces the bug reported in
+[issue #19](https://github.com/tejashwikalptaru/ssd1306xled/issues/19) --
+sprite flicker when two rows of sprites sit close together on the Y axis --
+and shows how v1.0.0's compositing and clipping fix it.
+
+@image html sprite-overlap-fix.gif "sprite_overlap_fix running in the Wokwi simulator"
+
+You can run it in the Wokwi simulator without any hardware. See the
+@ref simulation page for setup instructions.
+
+### The bug {#overlap_bug}
+
+The SSD1306 splits its 64-pixel height into eight 8-pixel pages. Each byte
+you write controls one column of a page. I2C is write-only, so there is no
+way to read existing pixels back before writing new ones. If two sprites
+touch the same page, the second write erases the first.
+
+In this example, two rows of 16x8 invader sprites sit at Y=19 and Y=28.
+Y=19 spans pages 2-3 and Y=28 spans pages 3-4. Both touch page 3, so
+the second row's write to page 3 wipes out the first row's pixels there.
+
+```c
+for (uint8_t i = 0; i < 3; i++) {
+    SSD1306.ssd1306_draw_bmp_px(10 + i * 40, 19, 16, 1, invader);  // row 1
+    SSD1306.ssd1306_draw_bmp_px(10 + i * 40, 28, 16, 1, invader);  // row 2
+}
+```
+
+The screen shows "BUG: flicker" and you can see the bottom edge of the top
+row is missing -- that is the data the second row overwrote on page 3.
+
+### The fix: compositing {#overlap_fix}
+
+The fix is a three-step process for each column group where sprites share
+a page:
+
+1. Draw both sprites normally. This writes the non-shared pages correctly
+   (page 2 for row 1's top half, page 4 for row 2's bottom half).
+2. Composite both sprites into a small buffer for the shared page. Each
+   call ORs the sprite's bits into the buffer, so neither erases the other.
+3. Send the buffer to the display once.
+
+```c
+uint8_t x = 10 + i * 40;
+
+// Step 1: normal draws handle non-shared pages
+SSD1306.ssd1306_draw_bmp_px(x, 19, 16, 1, invader);
+SSD1306.ssd1306_draw_bmp_px(x, 28, 16, 1, invader);
+
+// Step 2: composite shared page 3 into a buffer
+uint8_t buf[16];
+memset(buf, 0, 16);
+SSD1306.ssd1306_compose_bmp_px(buf, x, 16, x, 19, 16, 1, invader, 3);
+SSD1306.ssd1306_compose_bmp_px(buf, x, 16, x, 28, 16, 1, invader, 3);
+
+// Step 3: single write, both sprites preserved
+SSD1306.ssd1306_send_buf(x, 3, buf, 16);
+```
+
+The buffer only needs to be as wide as the widest column span that
+overlaps. Here both sprites are 16 pixels wide at the same X, so 16 bytes.
+See @ref compositing for more detail on the API.
+
+### The fix: clipping {#overlap_clipping}
+
+The same issue report mentioned a sprite jump when entering from off-screen.
+If X is negative, `ssd1306_draw_bmp_px()` wraps around because X is
+unsigned. The `_clipped` variants accept signed X and clip columns that
+fall outside 0-127.
+
+```c
+for (int16_t x = -16; x <= 112; x += 2) {
+    SSD1306.ssd1306_clear_area_px_clipped(x - 2, 3, 16, 1);
+    SSD1306.ssd1306_draw_bmp_px_clipped(x, 3, 16, 1, saucer);
+    _delay_ms(30);
+}
+```
+
+The saucer slides in from the left edge, partially visible at first, then
+fully on-screen. No jump, no wrap-around. See @ref clipping for the API
+details.
 
 ## Creating your own bitmaps {#creating_bitmaps}
 

@@ -23,7 +23,9 @@ RECURSIVE              = YES
 FILE_PATTERNS          = *.h *.cpp *.md
 USE_MDFILE_AS_MAINPAGE = README.md
 EXAMPLE_PATH           = examples
-IMAGE_PATH             = images
+IMAGE_PATH             = images \
+                         examples/OLED_demo \
+                         examples/sprite_overlap_fix
 
 # Extraction
 EXTRACT_ALL            = YES
